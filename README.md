@@ -1,6 +1,7 @@
 # wifite-mod-pixiewps
 
 #Install required libraries and tools
+
 Libraries for reaver
   sudo apt-get install libpcap-dev aircrack-ng sqlite3 libsqlite3-dev
 
