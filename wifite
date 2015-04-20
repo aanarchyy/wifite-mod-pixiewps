@@ -2867,7 +2867,7 @@ def wps_attack(iface, target):
 	
 	#Run reaver to collect hashes
 
-	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a" ], stdout=p_out).pid
+	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
 
 	p = open(temp + "reaver_out.out")
 
@@ -2909,7 +2909,7 @@ def wps_attack(iface, target):
 			p.seek(0)
 			while line:
 	    
-			    line = f.readline()
+			    line = p.readline()
 			    if "PKE:" in line:PKE=line
 			    if "PKR:" in line:PKR=line
 			    if "E-Hash1" in line:EHash1=line
