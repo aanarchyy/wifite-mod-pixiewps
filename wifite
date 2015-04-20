@@ -22,7 +22,7 @@
 	Restore same command-line switch names from v1
 	
 	If device already in monitor mode, check for and, if applicable, use macchanger
-	
+ 	
 	 WPS
 	 * Mention reaver automatically resumes sessions
 	 * Warning about length of time required for WPS attack (*hours*)
