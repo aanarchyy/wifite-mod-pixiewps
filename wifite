@@ -643,6 +643,14 @@ def handle_args():
 				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
 				except IndexError: print R+' [!]'+O+' no timeout given!'+W
 				else: print GR+' [+]'+W+' WPS attack timeout set to %s' % (G+args[i] + " seconds"+W)
+			if args[i] == '-pixiet' or args[i] == '-pixietime':
+				i += 1
+				try:
+					PIXIE_TIMEOUT = int(args[i])
+				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
+				except IndexError: print R+' [!]'+O+' no timeout given!'+W
+				else: print GR+' [+]'+W+' pixie attack timeout set to %s' % (G+args[i] + " seconds"+W)
+
 			if args[i] == '-wpsratio' or args[i] == 'wpsr':
 				i += 1
 				try:
@@ -657,15 +665,6 @@ def handle_args():
 				except ValueError: print R+' [!]'+O+' invalid number: %s' % (R+args[i]+W)
 				except IndexError: print R+' [!]'+O+' no number given!'+W
 				else: print GR+' [+]'+W+' WPS maximum retries set to %s' % (G+args[i] + " retries"+W)
-
-			if args[i] == '-pixiet' or args[i] == '-pixietime':
-				i += 1
-				try:
-					PIXIE_TIMEOUT = int(args[i])
-				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
-				except IndexError: print R+' [!]'+O+' no timeout given!'+W
-				else: print GR+' [+]'+W+' pixiewps attack timeout set to %s' % (G+args[i] + " seconds"+W)
-
 				
 	except IndexError:
 		print '\nindexerror\n\n'
@@ -876,7 +875,11 @@ def help():
 	print sw+'\t-wpst '+var+'<sec>  \t'+des+'max wait for new retry before giving up (0: never)  '+de+'[660]'+W
 	print sw+'\t-wpsratio '+var+'<per>\t'+des+'min ratio of successful PIN attempts/total tries    '+de+'[0]'+W
 	print sw+'\t-wpsretry '+var+'<num>\t'+des+'max number of retries for same PIN before giving up '+de+'[0]'+W
-	print sw+'\t-pixiet '+var+'<sec>  \t'+des+'max time to attempt pixiewps before giving up (0: never)  '+de+'[660]'+W
+
+	print head+'\n   PixieWPS'+W
+	print sw+'\t-pixieonly       \t'+des+'only target WPS networks/only use pixiewps       '+de+'[off]'+W
+	print sw+'\t-pixiet '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)  '+de+'[660]'+W
+
 
 	print head+'\n   EXAMPLE'+W
 	print sw+'\t./wifite.py '+W+'-wps -wep -c 6 -pps 600'+W
@@ -2911,10 +2914,9 @@ def wps_attack(iface, target):
 				print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
 				WPSpin="WPS pin not found!"
 				pixie_exit="True"
-				break
 
 		if pixie == "true":
-	
+			#p = open(temp + "reaver_out.out")
 			line="s"
 			p.seek(0)
 			while line:
@@ -2928,10 +2930,7 @@ def wps_attack(iface, target):
 			    if "E-Nonce" in line:ENonce=line
 			p.close()
 		
-			os.remove(temp + "reaver_err.out")
-			os.remove(temp + "reaver_in.out")
-			os.remove(temp + "reaver_out.out")
-		
+	
 			ENonce=ENonce[ENonce.find("E-Nonce:")+5:ENonce.find("\n")] 	
 			PKE=PKE[PKE.find("PKE:")+5:PKE.find("\n")]
 			PKR=PKR[PKR.find("PKR:")+5:PKR.find("\n")]	
@@ -2958,8 +2957,14 @@ def wps_attack(iface, target):
 			line="s"
 			while line:
 				line = f.readline()
-				if "WPS pin:" in line:WPSpin=line
-				if "WPS pin not found!" in line:WPSpin="WPS pin not found!"
+				if "WPS pin:" in line:
+					WPSpin=line
+					print WPSpin
+					pixie_exit="true"
+
+				if "WPS pin not found!" in line:
+					WPSpin="WPS pin not found!"
+					pixie_exit="exit"
 			f.close()
 			
 			os.remove(temp + "fPixiewpsErrors.txt")
