@@ -155,7 +155,7 @@ CRACKED_TARGETS    = []    # List of targets we have already cracked
 ATTACK_ALL_TARGETS = False # Flag for when we want to attack *everyone*
 ATTACK_MIN_POWER   = 0     # Minimum power (dB) for access point to be considered a target
 VERBOSE_APS        = True  # Print access points as they appear
-PIXIE_TIMEOUT	   = 60
+PIXIE_TIMEOUT	   = 660
 
 # Console colors
 W  = '\033[0m'  # white (normal)
@@ -657,6 +657,15 @@ def handle_args():
 				except ValueError: print R+' [!]'+O+' invalid number: %s' % (R+args[i]+W)
 				except IndexError: print R+' [!]'+O+' no number given!'+W
 				else: print GR+' [+]'+W+' WPS maximum retries set to %s' % (G+args[i] + " retries"+W)
+
+			if args[i] == '-pixiet' or args[i] == '-pixietime':
+				i += 1
+				try:
+					PIXIE_TIMEOUT = int(args[i])
+				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
+				except IndexError: print R+' [!]'+O+' no timeout given!'+W
+				else: print GR+' [+]'+W+' pixiewps attack timeout set to %s' % (G+args[i] + " seconds"+W)
+
 				
 	except IndexError:
 		print '\nindexerror\n\n'
@@ -867,6 +876,7 @@ def help():
 	print sw+'\t-wpst '+var+'<sec>  \t'+des+'max wait for new retry before giving up (0: never)  '+de+'[660]'+W
 	print sw+'\t-wpsratio '+var+'<per>\t'+des+'min ratio of successful PIN attempts/total tries    '+de+'[0]'+W
 	print sw+'\t-wpsretry '+var+'<num>\t'+des+'max number of retries for same PIN before giving up '+de+'[0]'+W
+	print sw+'\t-pixiet '+var+'<sec>  \t'+des+'max time to attempt pixiewps before giving up (0: never)  '+de+'[660]'+W
 
 	print head+'\n   EXAMPLE'+W
 	print sw+'\t./wifite.py '+W+'-wps -wep -c 6 -pps 600'+W
