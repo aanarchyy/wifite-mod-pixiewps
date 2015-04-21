@@ -157,8 +157,9 @@ ATTACK_MIN_POWER   = 0     # Minimum power (dB) for access point to be considere
 VERBOSE_APS        = True  # Print access points as they appear
 
 #Pixie variables
-PIXIE_TIMEOUT	   = 660
-PIXIE_ONLY        = False
+PIXIE_TIMEOUT	   = 660   # Timeout for pixiewps attack
+PIXIE_NOPSK	   = False # Do not run reaver using pin found by pixiewps if it is sucessful
+PIXIE_ONLY         = False # only use pixiewps, do not run reaver brute-force
 
 # Console colors
 W  = '\033[0m'  # white (normal)
@@ -445,7 +446,7 @@ def handle_args():
 	global WEP_CAFFELATTE, WEP_P0841, WEP_HIRTE, WEP_CRACK_AT_IVS, WEP_IGNORE_FAKEAUTH
 	global WEP_SAVE, SHOW_MAC_IN_SCAN, ATTACK_ALL_TARGETS, ATTACK_MIN_POWER
 	global WPS_DISABLE, WPS_TIMEOUT, WPS_RATIO_THRESHOLD, WPS_MAX_RETRIES
-	global VERBOSE_APS, PIXIE_TIMEOUT, PIXIE_ONLY
+	global VERBOSE_APS, PIXIE_TIMEOUT, PIXIE_ONLY, PIXIE_NOPSK
 
 	args = argv[1:]
 	if args.count('-h') + args.count('--help') + args.count('?') + args.count('-help') > 0:
@@ -646,18 +647,7 @@ def handle_args():
 				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
 				except IndexError: print R+' [!]'+O+' no timeout given!'+W
 				else: print GR+' [+]'+W+' WPS attack timeout set to %s' % (G+args[i] + " seconds"+W)
-			if args[i] == '-pixiet' or args[i] == '-pixietime':
-				i += 1
-				try:
-					PIXIE_TIMEOUT = int(args[i])
-				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
-				except IndexError: print R+' [!]'+O+' no timeout given!'+W
-				else: print GR+' [+]'+W+' pixie attack timeout set to %s' % (G+args[i] + " seconds"+W)
-			if args[i] == '-ponly':                                                                                       
-				print GR+' [+]'+W+' Pixiewps attack only '+G+'enabled'+W                                                            
-				PIXIE_ONLY = True                                                                                                      
-				WPA_DISABLE = True                                                                                              
-				WEP_DISABLE = True
+
 			if args[i] == '-wpsratio' or args[i] == 'wpsr':
 				i += 1
 				try:
@@ -673,6 +663,23 @@ def handle_args():
 				except IndexError: print R+' [!]'+O+' no number given!'+W
 				else: print GR+' [+]'+W+' WPS maximum retries set to %s' % (G+args[i] + " retries"+W)
 				
+			#Pixie
+			if args[i] == '-pixiet' or args[i] == '-pixietime':
+				i += 1
+				try:
+					PIXIE_TIMEOUT = int(args[i])
+				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
+				except IndexError: print R+' [!]'+O+' no timeout given!'+W
+				else: print GR+' [+]'+W+' pixie attack timeout set to %s' % (G+args[i] + " seconds"+W)
+			if args[i] == '-ponly':                                                                                       
+				print GR+' [+]'+W+' Pixiewps attack only '+G+'enabled'+W                                                            
+				PIXIE_ONLY = True                                                                                                      
+				WPA_DISABLE = True                                                                                              
+				WEP_DISABLE = True
+			if args[i] == '-pixienopsk':
+				PIXIE_NOPSK = True
+				print GR+' [+]'+W+' Skip PSK retrieval on sucessful pixiewps attack'
+
 	except IndexError:
 		print '\nindexerror\n\n'
 	
@@ -886,6 +893,7 @@ def help():
 	print head+'\n   PixieWPS'+W
 	print sw+'\t-ponly       \t'+des+'only target WPS networks/only use pixiewps       '+de+'[off]'+W
 	print sw+'\t-pixiet '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)  '+de+'[660]'+W
+	print sw+'\t-pixienopsk       \t'+des+'Do not run reaver on successful pixiewps attack       '+de+'[off]'+W
 
 
 	print head+'\n   EXAMPLE'+W
@@ -2998,7 +3006,7 @@ def wps_attack(iface, target):
 	else:
 		WPSpin=WPSpin[WPSpin.find("WPS pin")+9:WPSpin.find("\n")]	#pixiewps found a pin, let's see if it works! Have to remove the -a flag, or it hangs. 
 		print GR+'\n [+]'+G+' PIN found:     %s' % (C+WPSpin+W)
-		if PIXIE_ONLY == "false":print GR+' [+]'+G+' Handing pin to reaver'
+		if PIXIE_NOPSK == False:print GR+' [+]'+G+' Handing pin to reaver'
 	cmd = ['reaver',
 		'-i', iface,
 	       	'-b', target.bssid,
@@ -3008,7 +3016,11 @@ def wps_attack(iface, target):
 	        '-vv']  # verbose output
 	
 	#####/PIXIEWPS#####
-	if PIXIE_ONLY == False:
+
+
+
+	
+	if PIXIE_NOPSK == False:
 		print GR+'\n [0:00:00]'+W+' initializing %sWPS PIN attack%s on %s' % \
 		             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
 
@@ -3115,13 +3127,13 @@ def wps_attack(iface, target):
 			
 				# End of big "while not cracked" loop
 			
-				if cracked:
-					if pin != '': print GR+'\n\n [+]'+G+' PIN found:     %s' % (C+pin+W)
-					if key != '': print GR+' [+] %sWPA key found:%s %s' % (G, W, C+key+W)
-					WPA_FINDINGS.append(W+"found %s's WPA key: \"%s\", WPS PIN: %s" % (G+target.ssid+W, C+key+W, C+pin+W))
-					WPA_FINDINGS.append('')
-					
-					save_cracked(target.bssid, target.ssid, "Key is '" + key + "' and PIN is '" + pin + "'", 'WPA')
+			if cracked:
+				if pin != '': print GR+'\n\n [+]'+G+' PIN found:     %s' % (C+pin+W)
+				if key != '': print GR+' [+] %sWPA key found:%s %s' % (G, W, C+key+W)
+				WPA_FINDINGS.append(W+"found %s's WPA key: \"%s\", WPS PIN: %s" % (G+target.ssid+W, C+key+W, C+pin+W))
+				WPA_FINDINGS.append('')
+				
+				save_cracked(target.bssid, target.ssid, "Key is '" + key + "' and PIN is '" + pin + "'", 'WPA')
 			
 		except KeyboardInterrupt:
 			print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
