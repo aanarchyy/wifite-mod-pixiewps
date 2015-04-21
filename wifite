@@ -3158,7 +3158,7 @@ if __name__ == '__main__':
 	try:
 		banner()
 		main()
-	except KeyboardInterrupt:
+	except KeyboardInterrupt:           print R+'\n (^D)'+O+' interrupted\n'+W
 
 	except EOFError:          print R+'\n (^D)'+O+' interrupted\n'+W
 	
