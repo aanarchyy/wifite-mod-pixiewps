@@ -10,6 +10,7 @@
     You must install reaver-wps-fork-t6x by t6x (https://github.com/t6x/reaver-wps-fork-t6x)
 
 #ToDo
+    Fix monitor issue with new reaver
     Add mdk3 support
     Add default pin calculations and options
     Maybe add option to dynamically spoof connected client
