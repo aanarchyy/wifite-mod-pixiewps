@@ -11,4 +11,4 @@
 #ToDo
     Add mdk3 support
     Add default pin calculations and options
-    Add option to attempt pin on sucessful pixiewps attack
+    Add option to attempt pin on sucessful pixiewps attack if -ponly flag used
