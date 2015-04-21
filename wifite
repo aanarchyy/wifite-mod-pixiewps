@@ -2936,7 +2936,7 @@ def wps_attack(iface, target):
 	except KeyboardInterrupt:
 		print R+'\n (^C)'+O+' Pixiewps attack interrupted'+W
 		if attack_interrupted_prompt():
-			send_interrupt(proc)
+			send_interrupt(pid)
 			print ''
 			exit_gracefully(0)
 
