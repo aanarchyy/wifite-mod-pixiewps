@@ -1,6 +1,6 @@
 # Added flags
     -pixiet <sec>     #configurable timeout for pixiewps attack
-    -ponly            # uses only pixiewps and reaver up until M3
+    -ponly            #uses only pixiewps and reaver up until M3
 
 #Install required libraries and tools
 
