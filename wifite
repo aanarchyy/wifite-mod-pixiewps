@@ -3159,11 +3159,7 @@ if __name__ == '__main__':
 		banner()
 		main()
 	except KeyboardInterrupt:
-		print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
-		if attack_interrupted_prompt():
-			send_interrupt(proc)
-			print ''
-	
+
 	except EOFError:          print R+'\n (^D)'+O+' interrupted\n'+W
 	
 	exit_gracefully(0)
