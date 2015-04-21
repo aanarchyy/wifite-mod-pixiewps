@@ -1,6 +1,7 @@
 #Added flags
     -pixiet <sec>     #configurable timeout for pixiewps attack
     -ponly            #uses only pixiewps and reaver up until M3
+    -pixienopsk       #do not run retrieved pin through reaver
 
 #Required tools
 
@@ -11,4 +12,4 @@
 #ToDo
     Add mdk3 support
     Add default pin calculations and options
-    Add option to attempt pin on sucessful pixiewps attack if -ponly flag used
+    Maybe add option to dynamically spoof connected client
