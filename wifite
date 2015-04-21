@@ -2919,10 +2919,11 @@ def wps_attack(iface, target):
 					print GR+' [+]'+G+' E-Hash2 found'
 					pixie = "true"
 				if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
-					print R+'\n [!]'+O+' unable to complete successful try in %d seconds' % (PIXIE_TIMEOUT)
+					print R+'\n [!]'+O+' unable to complete in %d seconds' % (PIXIE_TIMEOUT)
 					print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
 					WPSpin="WPS pin not found!"
 					pixie_exit="True"	
+					break
 
 	except KeyboardInterrupt:
 		print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
