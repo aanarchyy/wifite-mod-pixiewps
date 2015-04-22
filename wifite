@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 101;
+REVISION = 85
 
 
 # WPA variables
@@ -850,6 +850,7 @@ def help():
 	print sw+'\t-showb       \t'+des+'display target BSSIDs after scan               '+de+'[off]'+W
 	print sw+'\t-pow '+var+'<db>   \t'+des+'attacks any targets with signal strenghth > '+var+'db '+de+'[0]'+W
 	print sw+'\t-quiet       \t'+des+'do not print list of APs during scan           '+de+'[off]'+W
+	print sw+'\t-update       \t'+des+'updates to most recent wifite-pixiewps-fork     '+W
 	print ''
 	
 	print head+'\n   WPA'+W
@@ -887,7 +888,7 @@ def help():
 	print head+'\n   PixieWPS'+W
 	print sw+'\t-ponly       \t'+des+'only target WPS networks/only use pixiewps       '+de+'[off]'+W
 	print sw+'\t-pixiet '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)  '+de+'[660]'+W
-	print sw+'\t-pixienopsk       \t'+des+'Do not run reaver on successful pixiewps attack       '+de+'[off]'+W
+	print sw+'\t-pixienopsk    \t'+des+'Do not run reaver on successful pixiewps attack       '+de+'[off]'+W
 
 
 	print head+'\n   EXAMPLE'+W
