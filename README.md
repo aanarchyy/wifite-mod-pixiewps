@@ -2,7 +2,7 @@
     -pixiet <sec>     #configurable timeout for pixiewps attack
     -ponly            #uses only pixiewps and reaver up until M3
     -pixienopsk       #do not run retrieved pin through reaver
-
+    -update           #now updates to this fork instead of original wifite
 #Required tools
 
     You must install Pixiewps by Wiire (https://github.com/wiire/pixiewps)
@@ -12,8 +12,7 @@
 #ToDo
     Fix monitor creation issue with new aircrack-ng
     Maybe add option to dynamically spoof connected client
-    Add updater
-    
+
 #May do    
     
     Add mdk3 support
