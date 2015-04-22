@@ -981,6 +981,9 @@ def get_iface():
 		return monitors[i - 1]
 	
 	proc  = Popen(['airmon-ng'], stdout=PIPE, stderr=DN)
+	
+	
+	
 	for line in proc.communicate()[0].split('\n'):
 		if len(line) == 0 or line.startswith('Interface'): continue
 		#monitors.append(line[:line.find('\t')])
@@ -996,21 +999,27 @@ def get_iface():
 
 	elif len(monitors) == 1:
 		monitor = monitors[0][:monitors[0].find('\t')]
+		print monitor
 		mac_anonymize(monitor)
 		
 		return enable_monitor_mode(monitor)
 	
 	print GR+" [+]"+W+" available wireless devices:"
+	#print monitors
 	for i, monitor in enumerate(monitors):
 		print "  %s%d%s. %s" % (G, i + 1, W, monitor)
-	
 	ri = raw_input(GR+" [+]"+W+" select number of device to put into monitor mode (%s1-%d%s): " % (G, len(monitors), W))
 	while not ri.isdigit() or int(ri) < 1 or int(ri) > len(monitors):
 		ri = raw_input(" [+] select number of device to put into monitor mode (%s1-%d%s): " % (G, len(monitors), W))
 	i = int(ri)
+
+	monitor2 = monitors[i-1]
+	monitort = monitor2.split('\t',2)[1]
 	monitor = monitors[i-1][:monitors[i-1].find('\t')]
+	if monitor.startswith('phy'): monitor = monitort
+		
 	mac_anonymize(monitor)
-	
+
 	return enable_monitor_mode(monitor)
 
 
