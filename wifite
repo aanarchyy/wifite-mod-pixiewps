@@ -704,7 +704,7 @@ def banner():
 	print G+"           "+GR+"/       \\"+G+"             "
 	print G+""
 	print G+"modified by aanarchyy(aanarchyy@gmail.com)"
-	print G+"Credits to wiire,DataHead,soxrok2212,nxxxu"
+	print G+"Credits to wiire,DataHead,soxrok2212,nxxxu,nuroo"
 	print W	
 
 def upgrade():
