@@ -1468,23 +1468,6 @@ def print_and_exec(cmd):
 	time.sleep(0.1)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ####################
 # HELPER FUNCTIONS #
 ####################
@@ -2051,7 +2034,7 @@ def has_handshake_tshark(target, capfile):
 				
 				src = fields[2].lower() # Source MAC address
 				dst = fields[4].lower() # Destination MAC address
-				msg = fields[9][0]      # The message number (1, 2, 3, or 4)
+				if len(fields) < 8:msg = fields[9][0]      # The message number (1, 2, 3, or 4)
 				#msg = fields[-1][0]
 				
 				# First, third msgs in 4-way handshake are from the target to client
@@ -2060,9 +2043,9 @@ def has_handshake_tshark(target, capfile):
 				elif msg_num % 2 == 0 and (dst != target.bssid.lower() or src != client): continue
 				
 				# The messages must appear in sequential order.
-				try:
-					if int(msg) != msg_num: continue
-				except ValueError: continue
+				#try:
+					#if int(msg) != msg_num: continue
+				#except ValueError: continue
 				
 				msg_num += 1
 				
@@ -2870,7 +2853,7 @@ def wps_attack(iface, target):
 	#####PIXIEWPS#####
 
 	print GR+' [0:00:00]'+W+' initializing %sPixieWPS attack%s on %s' % \
-	             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')'+W)
+	             (G, W, G+target.ssid+W+' ('+G+target.bssid+W+')\r'+W)
 
 	p_start = int(time.time())
 	pixie=False
@@ -2898,12 +2881,12 @@ def wps_attack(iface, target):
 	#Report when each hash is found
 	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
 	p = open(temp + "reaver_out.out")
-                                                
+        #http://www.thecodingforums.com/threads/sys-stdout-is-not-flushed.706358/              
 	try:
 		while pixie_exit == False:
-
 			while pixie == False or pixie_exit == False:
-
+				stdout.write( GR+ sec_to_hms(time.time()-p_start) +W+' \r ')
+				#stdout.flush()
 				time.sleep(1)
 				line = p.readline()
 				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
@@ -2932,6 +2915,7 @@ def wps_attack(iface, target):
 					WPSpin="WPS pin not found!"
 					pixie_exit=True	
 					break
+				stdout.flush()
 
 	except KeyboardInterrupt:
 		print R+'\n (^C)'+O+' Pixiewps attack interrupted'+W
