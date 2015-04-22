@@ -63,6 +63,7 @@ import os     # File management
 import time   # Measuring attack intervals
 import random # Generating a random MAC address.
 import errno  # Error numbers
+import shutil
 
 from sys import argv          # Command-line arguments
 from sys import stdout, stdin # Flushing
@@ -712,72 +713,65 @@ def upgrade():
 		replaces this script with the latest from the repo
 	"""
 	global REVISION
+	# Download script, replace with this one
+	print GR+' [+] '+G+'downloading'+W+' update...'
+
 	try:
-		print GR+' [!]'+W+' upgrading requires an '+G+'internet connection'+W
-		print GR+' [+]'+W+' checking for latest version...'
-		(revision, description, date_changed) = get_revision()
-		if revision == -1:
-			print R+' [!]'+O+' unable to access googlecode'+W
-		elif revision > REVISION:
-			print GR+' [!]'+W+' a new version is '+G+'available!'+W
-			print GR+' [-]'+W+'   revision:    '+G+str(revision)+W
-			print GR+' [-]'+W+'   description: '+G+description+W
-			print GR+' [-]'+W+'   date added:  '+G+date_changed+W
-			response = raw_input(GR+' [+]'+W+' do you want to upgrade to the latest version? (y/n): ')
-			if not response.lower().startswith('y'):
-				print GR+' [-]'+W+' upgrading '+O+'aborted'+W
-				exit_gracefully(0)
-				return
-			# Download script, replace with this one
-			print GR+' [+] '+G+'downloading'+W+' update...'
-			try:
-				sock = urllib.urlopen('http://wifite.googlecode.com/svn/trunk/wifite.py')
-				page = sock.read()
-			except IOError:
-				page = ''
-			if page == '':
-				print R+' [+] '+O+'unable to download latest version'+W
-				exit_gracefully(1)
-			
-			# Create/save the new script
-			f=open('wifite_new.py','w')
-			f.write(page)
-			f.close()
-			
-			# The filename of the running script
-			this_file = __file__
-			if this_file.startswith('./'):
-				this_file = this_file[2:]
-			
-			# create/save a shell script that replaces this script with the new one
-			f = open('update_wifite.sh','w')
-			f.write('''#!/bin/sh\n
-			           rm -rf ''' + this_file + '''\n
-			           mv wifite_new.py ''' + this_file + '''\n
-			           rm -rf update_wifite.sh\n
-			           chmod +x ''' + this_file + '''\n
-			          ''')
-			f.close()
-			
-			# Change permissions on the script
-			returncode = call(['chmod','+x','update_wifite.sh'])
-			if returncode != 0:
-				print R+' [!]'+O+' permission change returned unexpected code: '+str(returncode)+W
-				exit_gracefully(1)
-			# Run the script
-			returncode = call(['sh','update_wifite.sh'])
-			if returncode != 0:
-				print R+' [!]'+O+' upgrade script returned unexpected code: '+str(returncode)+W
-				exit_gracefully(1)
-			
-			print GR+' [+] '+G+'updated!'+W+' type "./' + this_file + '" to run again'
-			
-		else:
-			print GR+' [-]'+W+' your copy of wifite is '+G+'up to date'+W
-			
+		try:
+			sock = urllib.urlopen('https://github.com/aanarchyy/wifite-mod-pixiewps/archive/master.zip')
+			page = sock.read()
+		except IOError:
+			page = ''
+		if page == '':
+			print R+' [+] '+O+'unable to download latest version'+W
+			exit_gracefully(1)
+		
+		f=open(temp + 'wifite-mod-pixiewps-master.zip','w')
+		f.write(page)
+		f.close()
+		
+		returncode = call(['unzip', '-d', temp , temp + 'wifite-mod-pixiewps-master.zip'])
+		
+		if returncode != 0:
+			print R+' [!]'+O+' unzip change returned unexpected code: '+str(returncode)+W
+			exit_gracefully(1)
+		
+		# The filename of the running script
+		this_file = __file__
+		if this_file.startswith('./'):
+			this_file = this_file[2:]
+				
+		#create/save a shell script that replaces this script with the new one
+		f = open('update_wifite.sh','w')
+		f.write('''#!/bin/sh\n
+		           rm -rf ''' + this_file + '''\n
+			   cp ''' + temp + '''wifite-mod-pixiewps-master/wifite .
+		           chmod +x wifite
+		           rm -rf update_wifite.sh\n
+                           rm -rf ''' + temp + '''wifite-mod-pixiewps-master/
+		           chmod +x ''' + this_file + '''\n
+		          ''')
+		f.close()
+					
+		# Change permissions on the script
+		returncode = call(['chmod','+x','update_wifite.sh'])
+		if returncode != 0:
+			print R+' [!]'+O+' permission change returned unexpected code: '+str(returncode)+W
+			exit_gracefully(1)
+		# Run the script
+		returncode = call(['sh','update_wifite.sh'])
+		if returncode != 0:
+			print R+' [!]'+O+' upgrade script returned unexpected code: '+str(returncode)+W
+			exit_gracefully(1)
+		
+		print GR+' [+] '+G+'Updated'+W
+				
 	except KeyboardInterrupt:
 		print R+'\n (^C)'+O+' wifite upgrade interrupted'+W
+
 	exit_gracefully(0)
+
+	
 
 def get_revision():
 	"""
