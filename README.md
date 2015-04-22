@@ -10,7 +10,6 @@
     You must install reaver-wps-fork-t6x by t6x (https://github.com/t6x/reaver-wps-fork-t6x)
 
 #ToDo
-    Fix monitor creation issue with new aircrack-ng
     Maybe add option to dynamically spoof connected client
 
 #May do    
