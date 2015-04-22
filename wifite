@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 102
+REVISION = 103
 
 
 # WPA variables
