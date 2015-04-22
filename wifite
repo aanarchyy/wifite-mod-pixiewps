@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 85
+REVISION = 102
 
 
 # WPA variables
@@ -2875,14 +2875,18 @@ def wps_attack(iface, target):
 	#Run reaver to collect hashes
 	#Report when each hash is found
 	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
-	p = open(temp + "reaver_out.out")
-        #http://www.thecodingforums.com/threads/sys-stdout-is-not-flushed.706358/              
+	p = open(temp + "reaver_out.out")    
 	try:
 		while pixie_exit == False:
 			while pixie == False or pixie_exit == False:
-				stdout.write( GR+ sec_to_hms(time.time()-p_start) +W+' \r ')
-				#stdout.flush()
 				time.sleep(1)
+
+				pixieprog=time.time()-p_start
+				print ' %s Waiting for hashes' % \
+					(W+sec_to_hms(pixieprog)),
+				print '\r',
+				stdout.flush()
+
 				line = p.readline()
 				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
 					print GR+' [+]'+G+' E-Nonce found'                                                                                         
