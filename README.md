@@ -1,8 +1,8 @@
 #Added flags
-    -pto <sec>        # configurable timeout for pixiewps attack
+    -pto <sec>        # configurable timeout for pixiewps attack, default 660
     -ponly            # uses only pixiewps and reaver up until M3
     -pnopsk           # do not run retrieved pin through reaver
-    -paddto <sec>     # add n seconds to timeout on each hash retrevial
+    -paddto <sec>     # add n seconds to timeout on each hash retrevial, default 30
     -update           # now updates to this fork instead of original wifite
 #Required tools
 
