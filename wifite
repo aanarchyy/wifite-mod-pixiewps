@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 103
+REVISION = 104
 
 
 # WPA variables
@@ -158,9 +158,10 @@ ATTACK_MIN_POWER   = 0     # Minimum power (dB) for access point to be considere
 VERBOSE_APS        = True  # Print access points as they appear
 
 #Pixie variables
-PIXIE_TIMEOUT	   = 660   # Timeout for pixiewps attack
-PIXIE_NOPSK	   = False # Do not run reaver using pin found by pixiewps if it is sucessful
+PIXIE_TIMEOUT	   = 660   # timeout for pixiewps attack
+PIXIE_NOPSK	   = False # do not run reaver using pin found by pixiewps if it is sucessful
 PIXIE_ONLY         = False # only use pixiewps, do not run reaver brute-force
+PIXIE_ADD_TO       = 30    # add n seconds to timeout
 
 # Console colors
 W  = '\033[0m'  # white (normal)
@@ -447,7 +448,7 @@ def handle_args():
 	global WEP_CAFFELATTE, WEP_P0841, WEP_HIRTE, WEP_CRACK_AT_IVS, WEP_IGNORE_FAKEAUTH
 	global WEP_SAVE, SHOW_MAC_IN_SCAN, ATTACK_ALL_TARGETS, ATTACK_MIN_POWER
 	global WPS_DISABLE, WPS_TIMEOUT, WPS_RATIO_THRESHOLD, WPS_MAX_RETRIES
-	global VERBOSE_APS, PIXIE_TIMEOUT, PIXIE_ONLY, PIXIE_NOPSK
+	global VERBOSE_APS, PIXIE_TIMEOUT, PIXIE_ONLY, PIXIE_NOPSK, PIXIE_ADD_TO
 
 	args = argv[1:]
 	if args.count('-h') + args.count('--help') + args.count('?') + args.count('-help') > 0:
@@ -665,7 +666,7 @@ def handle_args():
 				else: print GR+' [+]'+W+' WPS maximum retries set to %s' % (G+args[i] + " retries"+W)
 				
 			#Pixie
-			if args[i] == '-pixiet' or args[i] == '-pixietime':
+			if args[i] == '-pixiet' or args[i] == '-pto':
 				i += 1
 				try:
 					PIXIE_TIMEOUT = int(args[i])
@@ -677,9 +678,16 @@ def handle_args():
 				PIXIE_ONLY = True                                                                                                      
 				WPA_DISABLE = True                                                                                              
 				WEP_DISABLE = True
-			if args[i] == '-pixienopsk':
+			if args[i] == '-pixienopsk' or args[i] == '-pnopsk':
 				PIXIE_NOPSK = True
 				print GR+' [+]'+W+' Skip PSK retrieval on sucessful pixiewps attack'
+			if args[i] == '-paddto':
+				i += 1
+				try:
+					PIXIE_ADD_TO = int(args[i])
+				except ValueError: print R+' [!]'+O+' invalid timeout: %s' % (R+args[i]+W)
+				except IndexError: print R+' [!]'+O+' no timeout given!'+W
+				else: print GR+' [+]'+W+' Seconds to add on hash retrevial %s' % (G+args[i] + " seconds"+W)
 
 	except IndexError:
 		print '\nindexerror\n\n'
@@ -887,8 +895,9 @@ def help():
 
 	print head+'\n   PixieWPS'+W
 	print sw+'\t-ponly       \t'+des+'only target WPS networks/only use pixiewps       '+de+'[off]'+W
-	print sw+'\t-pixiet '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)  '+de+'[660]'+W
-	print sw+'\t-pixienopsk    \t'+des+'Do not run reaver on successful pixiewps attack       '+de+'[off]'+W
+	print sw+'\t-pto '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)  '+de+'[660]'+W
+	print sw+'\t-pnopsk    \t'+des+'Do not run reaver on successful pixiewps attack       '+de+'[off]'+W
+	print sw+'\t-paddto '+var+'<sec>  \t'+des+'add n seconds to timeout on each hash retrevial  '+de+'[30]'+W
 
 
 	print head+'\n   EXAMPLE'+W
@@ -2899,19 +2908,24 @@ def wps_attack(iface, target):
 				line = p.readline()
 				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
 					print GR+' [+]'+G+' E-Nonce found'                                                                                         
-					ENonceb="1"                                      
+					ENonceb="1"
+					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO                                      
 				if "PKE:" in line and PKEb == "":
 					print GR+' [+]'+G+' PKE hash found'
 					PKEb="1"
+					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO
        			        if "PKR:" in line and PKRb == "":                 
        		        	        print GR+' [+]'+G+' PKR hash found'     
-       	 	            		PKRb="1"                                
+       	 	            		PKRb="1"  
+					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO                              
 				if "AuthKey:" in line and AuthKeyb == "":
 					print GR+' [+]'+G+' Authkey found'
 					AuthKeyb="1"
+					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO
 				if "E-Hash1" in line and EHash1b == "":
 					print GR+' [+]'+G+' E-Hash1 found'
 					EHash1b="1"
+					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO
 				if "E-Hash2" in line:
 					os.kill(pid, signal.SIGQUIT)
 					print GR+' [+]'+G+' E-Hash2 found'
