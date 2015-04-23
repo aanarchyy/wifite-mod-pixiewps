@@ -11,6 +11,7 @@
     You must install reaver-wps-fork-t6x by t6x (https://github.com/t6x/reaver-wps-fork-t6x)
 
 #ToDo
+    Add check to see if update is needed before performing.
     Add option to dynamically spoof connected client
     Add option to loop through forever instead of exiting out when any selected networks fail, not recracking
 
