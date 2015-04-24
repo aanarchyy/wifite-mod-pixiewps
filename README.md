@@ -4,6 +4,7 @@
     -pnopsk           # do not run retrieved pin through reaver
     -paddto <sec>     # add n seconds to timeout on each hash retrevial, default 30
     -update           # now updates to this fork instead of original wifite
+    -endless          # will now loop through targets forever until stopped
 #Required tools
 
     You must install Pixiewps by Wiire (https://github.com/wiire/pixiewps)
@@ -13,7 +14,7 @@
 #ToDo
     Add check to see if update is needed before performing.
     Add option to dynamically spoof connected client
-    Add option to loop through forever instead of exiting out when any selected networks fail, not recracking
+    Add option to auto-skip previously cracked AP instead of prompting
 
 #May do    
     
