@@ -268,7 +268,7 @@ def main():
 	
 	(targets, clients) = scan(iface=iface, channel=TARGET_CHANNEL)
 
-	auto_skip = True	
+	auto_skip = False	
 
 	try:
 		index = 0
@@ -324,7 +324,7 @@ def main():
 
 	try:
 		while not TOTAL_RUNS == ENDLESS or ENDLESS == 0:
-			print ' run %s' % (TOTAL_RUNS + 1)
+			print GR+' [+]'+W+' Run %s%d' % (G,TOTAL_RUNS + 1)
 			for t in targets:
 				TARGETS_REMAINING -= 1
 				
@@ -361,7 +361,7 @@ def main():
 			TOTAL_RUNS += 1	
 	except KeyboardInterrupt:
 		print R+'\n (^C)'+O+'attack interrupted'+W
-		print 'Total runs - %s' % (TOTAL_RUNS + 1)
+		print GR+' [+]'+W+'Total Runs %s%d' % (G,TOTAL_RUNS + 1)
 		print ''
 		exit_gracefully(0)
 		
@@ -1863,7 +1863,6 @@ def wpa_get_handshake(iface, target, clients):
 		Returns True if handshake was found, False otherwise
 	"""
 	global TARGETS_REMAINING, WPA_ATTACK_TIMEOUT
-	print PIXIE_ONLY
 	if WPA_ATTACK_TIMEOUT <= 0:WPA_ATTACK_TIMEOUT = -1
 	
 	# Generate the filename to save the .cap file as <SSID>_aa-bb-cc-dd-ee-ff.cap
@@ -2967,33 +2966,33 @@ def wps_attack(iface, target):
 
 				line = p.readline()
 				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
-					print GR+' [+]'+G+' E-Nonce found'                                                                                         
+					print GR+' [+]'+G+' E-Nonce found            '                                                                                         
 					ENonceb="1"
 					p_run=p_run+PIXIE_ADD_TO 
 					hash_suc = hash_suc + 1                                     
 				if "PKE:" in line and PKEb == "":
-					print GR+' [+]'+G+' PKE hash found'
+					print GR+' [+]'+G+' PKE hash found            '
 					PKEb="1"
 					p_run=p_run+PIXIE_ADD_TO                                    
 					hash_suc = hash_suc + 1                                       
        			        if "PKR:" in line and PKRb == "":                 
-       		        	        print GR+' [+]'+G+' PKR hash found'     
+       		        	        print GR+' [+]'+G+' PKR hash found            '     
        	 	            		PKRb="1"  
 					p_run=p_run+PIXIE_ADD_TO                                      
 					hash_suc = hash_suc + 1                                     
 				if "AuthKey:" in line and AuthKeyb == "":
-					print GR+' [+]'+G+' Authkey found'
+					print GR+' [+]'+G+' Authkey found            '
 					AuthKeyb="1"
 					p_run=p_run+PIXIE_ADD_TO                                      
 					hash_suc = hash_suc + 1                                     
 				if "E-Hash1" in line and EHash1b == "":
-					print GR+' [+]'+G+' E-Hash1 found'
+					print GR+' [+]'+G+' E-Hash1 found            '
 					EHash1b="1"
 					p_run=p_run+PIXIE_ADD_TO                                      
 					hash_suc = hash_suc + 1                                     
 				if "E-Hash2" in line:
 					os.kill(pid, signal.SIGQUIT)
-					print GR+' [+]'+G+' E-Hash2 found'
+					print GR+' [+]'+G+' E-Hash2 found            '
 					pixie = True
 					pixie_exit = True
 				if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
