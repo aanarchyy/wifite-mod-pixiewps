@@ -17,7 +17,7 @@
     Add option to auto-skip previously cracked AP instead of prompting
 
 #May do    
-    
+    Add option to download and install pixiewps and modified reaver from github
     Add mdk3 support
     Add default pin calculations and options
 
