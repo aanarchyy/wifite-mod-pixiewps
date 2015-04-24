@@ -507,7 +507,6 @@ def handle_args():
 				else: print GR+' [+]'+W+' channel set to %s' % (G+args[i]+W)
 			elif args[i] == '-mac':
 				print GR+' [+]'+W+' mac address anonymizing '+G+'enabled'+W
-				print O+'     note: only works if device is not already in monitor mode!'+W
 				DO_NOT_CHANGE_MAC = False
 			elif args[i] == '-i':
 				i += 1
@@ -1003,6 +1002,7 @@ def get_iface():
 		print R+' [!]'+O+' could not find wireless interface %s' % ('"'+R+WIRELESS_IFACE+O+'"'+W)
 
 	if len(monitors) == 1:
+		mac_anonymize(monitors[0])
 		return monitors[0] # Default to only device in monitor mode
 	elif len(monitors) > 1:
 		print GR+" [+]"+W+" interfaces in "+G+"monitor mode:"+W
@@ -1014,6 +1014,7 @@ def get_iface():
 			ri = raw_input("%s [+]%s select number of interface to use for capturing (%s1-%d%s): %s" % \
                      (GR,   W,                                              G, len(monitors), W, G))
 		i = int(ri)
+		mac_anonymize(monitors[i - 1])
 		return monitors[i - 1]
 	
 	proc  = Popen(['airmon-ng'], stdout=PIPE, stderr=DN)
@@ -1796,7 +1797,7 @@ def exit_gracefully(code=0):
 	# Disable monitor mode if enabled by us
 	disable_monitor_mode()
 	# Change MAC address back if spoofed
-	mac_change_back()
+	#mac_change_back() #no longer needed
 	print GR+" [+]"+W+" quitting" # wifite will now exit"
 	print ''
 	# GTFO
