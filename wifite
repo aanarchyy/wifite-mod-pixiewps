@@ -2959,7 +2959,7 @@ def wps_attack(iface, target):
 				time.sleep(1)
 
 				pixieprog=time.time()-p_start
-				print ' %s Waiting for hashes' % \
+				print ' %s Waiting...' % \
 					(W+sec_to_hms(pixieprog)),
 				print '\r',
 				stdout.flush()
@@ -2974,7 +2974,16 @@ def wps_attack(iface, target):
 					print GR+' [+]'+G+' PKE hash found            '
 					PKEb="1"
 					p_run=p_run+PIXIE_ADD_TO                                    
-					hash_suc = hash_suc + 1                                       
+					hash_suc = hash_suc + 1
+                               if "WPS Manufacturer" in line:                                   
+                                        mfr=line[line.find("Manufacturer:")+14:line.find("\n")] 
+					print GR+' [+]'+G+' Manufacturer: '+W+' %s ' % (mfr)    
+                                if "WPS Model Number" in line:                                      
+                                        model=line[line.find("Model Number:")+14:line.find("\n")]
+					print GR+' [+]'+G+' Model: '+W+' %s ' % (model)   
+                                if "WPS Model Serial Number" in line:                               
+                                        serial=line[line.find("Serial Number:")+15:line.find("\n")]
+					print GR+' [+]'+G+' Serial: '+W+' %s ' % (serial)
        			        if "PKR:" in line and PKRb == "":                 
        		        	        print GR+' [+]'+G+' PKR hash found            '     
        	 	            		PKRb="1"  
