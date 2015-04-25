@@ -2975,7 +2975,7 @@ def wps_attack(iface, target):
 					PKEb="1"
 					p_run=p_run+PIXIE_ADD_TO                                    
 					hash_suc = hash_suc + 1
-                               if "WPS Manufacturer" in line:                                   
+                                if "WPS Manufacturer" in line:                                   
                                         mfr=line[line.find("Manufacturer:")+14:line.find("\n")] 
 					print GR+' [+]'+G+' Manufacturer: '+W+' %s ' % (mfr)    
                                 if "WPS Model Number" in line:                                      
