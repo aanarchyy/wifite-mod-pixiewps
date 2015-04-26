@@ -2948,6 +2948,9 @@ def wps_attack(iface, target):
 	ENonceb=""
 	hash_suc = 0
 	locked=""
+	mfr=""
+	model=""
+	serial=""
 
 	p_out = open(temp + "reaver_out.out", "w")
 	#Run reaver to collect hashes
