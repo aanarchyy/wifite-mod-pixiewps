@@ -2952,7 +2952,7 @@ def wps_attack(iface, target):
 	p_out = open(temp + "reaver_out.out", "w")
 	#Run reaver to collect hashes
 	#Report when each hash is found
-	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-a", "-P" ], stdout=p_out).pid
+	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
 	p = open(temp + "reaver_out.out")    
 	try:
 		while pixie_exit == False:
@@ -2960,7 +2960,7 @@ def wps_attack(iface, target):
 				time.sleep(1)
 
 				pixieprog=time.time()-p_start
-				print ' %s Waiting for hashes' % \
+				print ' %s Waiting' % \
 					(W+sec_to_hms(pixieprog)),
 				print '\r',
 				stdout.flush()
