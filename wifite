@@ -358,7 +358,8 @@ def main():
 				
 				# If user wants to stop attacking 
 				if TARGETS_REMAINING <= 0: break
-			TOTAL_RUNS += 1	
+			TOTAL_RUNS += 1
+			TARGETS_REMAINING = len(targets)	
 	except KeyboardInterrupt:
 		print R+'\n (^C)'+O+'attack interrupted'+W
 		print GR+' [+]'+W+'Total Runs %s%d' % (G,TOTAL_RUNS + 1)
