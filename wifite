@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 107
+REVISION = 108
 
 
 # WPA variables
@@ -2957,6 +2957,8 @@ def wps_attack(iface, target):
 	#Run reaver to collect hashes
 	#Report when each hash is found
 	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
+
+	#print 'Running reaver -i %s -c %s -b %s -vv -N -L -a -P' % (iface, target.channel, target.bssid),
 	p = open(temp + "reaver_out.out")    
 	try:
 		while pixie_exit == False:
@@ -3022,8 +3024,6 @@ def wps_attack(iface, target):
 					WPSpin="WPS pin not found!"
 					pixie_exit=True
 					#hash recording	
-
-
 					break
 				stdout.flush()
 
@@ -3061,19 +3061,13 @@ def wps_attack(iface, target):
 		    if "AuthKey" in line:AuthKey=line
 		    if "E-Nonce" in line:ENonce=line
 		p.close()
-	
-		ENonce=ENonce[ENonce.find("E-Nonce:")+5:ENonce.find("\n")] 	
-		PKE=PKE[PKE.find("PKE:")+5:PKE.find("\n")]
-		PKR=PKR[PKR.find("PKR:")+5:PKR.find("\n")]	
-		EHash1=EHash1[EHash1.find("EHash1:")+14:EHash1.find("\n")]
-		EHash2=EHash2[EHash2.find("EHash2:")+14:EHash2.find("\n")]
-		AuthKey=AuthKey[AuthKey.find("AuthKey:")+9:AuthKey.find("\n")]
-		
-		
-		PKEb=len(re.sub('[^A-Za-z0-9]+', '', PKE))/2
-		EHash1b=len(re.sub('[^A-Za-z0-9]+', '', EHash1))/2
-		EHash2b=len(re.sub('[^A-Za-z0-9]+', '', EHash2))/2
-		AuthKeyb=len(re.sub('[^A-Za-z0-9]+', '', AuthKey))/2
+
+		ENonce= ENonce.split(':',1)[1].rstrip()
+		PKE=PKE.split(':',1)[1].rstrip()
+		PKR=PKR.split(':',1)[1].rstrip()
+		EHash1=EHash1.split(':',1)[1].rstrip()
+		EHash2=EHash2.split(':',1)[1].rstrip()
+		AuthKey=AuthKey.split(':',1)[1].rstrip()
 
 		fin2 = open(temp + "fPixiewpsIn.txt", "w")
 		fout2 = open(temp + "fPixiewpsOut.txt", "w")
@@ -3082,6 +3076,7 @@ def wps_attack(iface, target):
 		#Stuff the hashes into pixiewps	
 
 		runpixie=Popen(["pixiewps", "-e", PKE, "-r", PKR, "-s", EHash1, "-z", EHash2, "-a", AuthKey, "-n", ENonce ],stdin=fin2, stdout=fout2, stderr=ferr2)
+		#print 'pixiewps  -e %s -r %s -s %s -z %s -a %s -n %s' % (PKE, PKR, EHash1, EHash2, AuthKey, ENonce)
 		Popen.wait(runpixie)
 		f = open(temp + 'fPixiewpsOut.txt')
 		line="s"
