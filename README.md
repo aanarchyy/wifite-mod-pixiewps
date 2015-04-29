@@ -12,9 +12,12 @@
     You must install reaver-wps-fork-t6x by t6x (https://github.com/t6x/reaver-wps-fork-t6x)
 
 #ToDo
+    Add check for pixiewps, modified reaver, and offer option to install.
     Add check to see if update is needed before performing.
-    Add option to dynamically spoof connected client
-    Add option to auto-skip previously cracked AP instead of prompting
+    Add option to dynamically spoof connected client while running attack.
+    Add option to auto-skip previously cracked AP instead of prompting.
+    Add recording for individual access points(clients, signal strenght, hashes, solved pins, etc).
+    
 
 #May do    
     Add option to download and install pixiewps and modified reaver from github
