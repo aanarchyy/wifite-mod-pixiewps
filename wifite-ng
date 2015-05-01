@@ -778,7 +778,7 @@ def upgrade():
 		f = open('update_wifite.sh','w')
 		f.write('''#!/bin/sh\n
 		           rm -rf ''' + this_file + '''\n
-			   cp ''' + temp + '''wifite-mod-pixiewps-master/wifite .
+			   cp ''' + temp + '''wifite-mod-pixiewps-master/wifite-ng .
 		           chmod +x wifite-ng
 		           rm -rf update_wifite.sh\n
                            rm -rf ''' + temp + '''wifite-mod-pixiewps-master/
