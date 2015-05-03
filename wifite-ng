@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 109
+REVISION = 108
 
 
 # WPA variables
@@ -2944,7 +2944,9 @@ def wps_attack(iface, target):
 	hash_suc = 0
 	locked=""
 	mfr=""
-	model=""
+	modelna=""
+	modelno=""
+
 	serial=""
 
 	p_out = open(temp + "reaver_out.out", "w")
@@ -2984,13 +2986,17 @@ def wps_attack(iface, target):
 					hash_suc = hash_suc + 1
 					#print PKE 
                                 if "WPS Manufacturer" in line and mfr == "":                                   
-                                        mfr=line[line.find("Manufacturer:")+14:line.find("\n")] 
+                                        mfr=line.split(':',1)[1].strip()
 					print GR+' [+]'+G+' Manufacturer: '+W+' %s ' % (mfr)    
-                                if "WPS Model Number" in line and model == "":                                      
-                                        model=line[line.find("Model Number:")+14:line.find("\n")]
-					print GR+' [+]'+G+' Model: '+W+' %s ' % (model)   
-                                if "WPS Model Serial Number" in line and serial == "":                               
-                                        serial=line[line.find("Serial Number:")+15:line.find("\n")]
+                                if "WPS Model Name" in line and modelna == "":                                      
+                                        modelna=line.split(':',1)[1].strip()
+					print GR+' [+]'+G+' Model Name: '+W+' %s ' % (modelna)   
+  
+                                if "WPS Model Number" in line and modelno == "":                                      
+                                        modelno=line.split(':',1)[1].strip()
+					print GR+' [+]'+G+' Model Number: '+W+' %s ' % (modelno)   
+                                if "Access Point Serial Number" in line and serial == "":                               
+                                        serial=line.split(':',1)[1].strip()
 					print GR+' [+]'+G+' Serial: '+W+' %s ' % (serial)
        			        if "PKR:" in line and PKR == "":                 
        		        	        print GR+' [+]'+G+' PKR hash found            '     
