@@ -3089,7 +3089,7 @@ def wps_attack(iface, target):
 	if WPSpin=="WPS pin not found!" or WPSpin=="":	#Crap, timed out or didn't work. Run a regular reaver brute-force
 
 		print GR+'\n [+]'+G+' Pixiewps attack failed!'
-		pixie_fail=True
+		#pixie_fail=True
 		cmd = ['reaver',
 			'-i', iface,
 		       	'-b', target.bssid,
