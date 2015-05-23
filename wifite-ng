@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 109
+REVISION = 110
 
 
 # WPA variables
@@ -1417,10 +1417,25 @@ def wps_check_targets(targets, cap_file, verbose=True):
 	if verbose:
 		print GR+' [+]'+W+' checking for '+G+'WPS compatibility'+W+'...',
 		stdout.flush()
+		
+	# Check if new 'changed version of wash that swapped the -C functionality
+	# for no apparent reason' exists...
+
+	reaver_check = Popen(program_name, stdout=PIPE, stderr=DN)
+
+	for line in reaver_check.communicate()[0].split('\n'):
+		newreav = line.find("Wiire")
+		if newreav > 0: break
 	
-	cmd = [program_name,
-	       '-f', cap_file,
-	       '-C'] # ignore Frame Check Sum errors
+	if newreav > 0:
+		cmd = [program_name,
+			'-f', cap_file]
+	else:
+
+		cmd = [program_name,
+			'-f', cap_file,
+			'-C'] # ignore Frame Check Sum errors
+	
 	proc_walsh = Popen(cmd, stdout=PIPE, stderr=DN)
 	proc_walsh.wait()
 	for line in proc_walsh.communicate()[0].split('\n'):
