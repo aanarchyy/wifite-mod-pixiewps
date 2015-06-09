@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 110
+REVISION = 111
 
 
 # WPA variables
@@ -1442,7 +1442,8 @@ def wps_check_targets(targets, cap_file, verbose=True):
 		if line.strip() == '' or line.startswith('Scanning for'): continue
 		bssid = line.split(' ')[0]
 		if line.count(':') > 1:
-			locked = line.split(' ')[42]
+			line2 = re.sub("\s\s+", " ", line)
+			locked = line2.split(' ')[4]
 		for t in targets:
 			if t.bssid.lower() == bssid.lower():
 				if locked == 'Yes':
