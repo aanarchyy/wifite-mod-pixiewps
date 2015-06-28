@@ -2969,7 +2969,7 @@ def wps_attack(iface, target):
 	#Report when each hash is found
 
 
-	reaver_check = Popen(program_name, stdout=PIPE, stderr=DN)
+	reaver_check = Popen("reaver", stdout=PIPE, stderr=DN)
 
 	for line in reaver_check.communicate()[0].split('\n'):
 		newreav = line.find("kib0rg")
