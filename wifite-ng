@@ -88,7 +88,7 @@ from subprocess import call
 # GLOBAL VARIABLES IN ALL CAPS #
 ################################
 
-REVISION = 111
+REVISION = 112
 
 
 # WPA variables
@@ -2967,8 +2967,20 @@ def wps_attack(iface, target):
 	p_out = open(temp + "reaver_out.out", "w")
 	#Run reaver to collect hashes
 	#Report when each hash is found
-	pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "--no-nacks", "-L", "-a", "-P" ], stdout=p_out).pid
 
+
+	reaver_check = Popen(program_name, stdout=PIPE, stderr=DN)
+
+	for line in reaver_check.communicate()[0].split('\n'):
+		newreav = line.find("kib0rg")
+		if newreav > 0: break
+	
+	if newreav > 0:
+		pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vvv", "--no-nacks", "-L", "-a", "-P" ], stdout=p_out).pid
+	else:
+
+		pid = Popen(["reaver", "-i", iface, "-c", target.channel, "-b", target.bssid, "-vv", "--no-nacks", "-L", "-a", "-P" ], stdout=p_out).pid
+	
 	#print 'Running reaver -i %s -c %s -b %s -vv -N -L -a -P' % (iface, target.channel, target.bssid),
 	p = open(temp + "reaver_out.out")    
 	try:
